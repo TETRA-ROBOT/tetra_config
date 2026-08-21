@@ -95,6 +95,7 @@ def generate_launch_description():
         respawn= True,
         output='screen',
         parameters=[
+            {"robot_model": "sm"},
             {"m_dHome_ID": 0}
         ]
     )

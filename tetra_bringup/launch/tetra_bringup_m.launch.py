@@ -96,6 +96,7 @@ def generate_launch_description():
         respawn=True,
         respawn_delay=0.5,
         parameters=[
+            {"robot_model": "m"},
             {"m_dHome_ID": 0}
         ]
     )
