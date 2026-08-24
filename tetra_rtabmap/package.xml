@@ -4,7 +4,7 @@
   <name>tetra_rtabmap</name>
   <version>0.0.1</version>
   <description>tetra_rtabmap Package description</description>
-  <maintainer email="wbjin@hyulimrobot.com">wookbin Jin</maintainer>
+  <maintainer email="johny@hyulimatech.co.kr">johny</maintainer>
   <license>Apache 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
