@@ -78,18 +78,6 @@ def generate_launch_description():
         }]
     )
     
-    # tetra_service
-    tetra_service_node = Node(
-        package='tetra_service', 
-        executable='tetra_service',
-        respawn= True,
-        output='screen',
-        parameters=[
-            {"robot_model": "edu"},
-            {"m_dHome_ID": 0}
-        ]
-    )
-
     # rosbridge_server 
     rosbridge_server = Node(
         package='rosbridge_server', 
@@ -165,7 +153,6 @@ def generate_launch_description():
             joy_node,
             use_sim_time,
             rsp_node,
-            tetra_service_node,
             rosbridge_server,
             rosapi_node,
             kanavi_lidar_node,

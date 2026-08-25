@@ -359,7 +359,7 @@ docking_server:
     dock_prestaging_tolerance: 0.5
 
     # Types of docks
-    dock_plugins: ['simple_charging_dock']
+    dock_plugins: ['simple_charging_dock', 'tetra_charging_dock', 'tetra_lift_load_dock', 'tetra_lift_unload_dock']
     simple_charging_dock:
       plugin: 'opennav_docking::SimpleChargingDock'
       docking_threshold: 0.05
@@ -376,16 +376,45 @@ docking_server:
       external_detection_rotation_yaw: 0.0
       filter_coef: 0.1
 
-    # Dock instances
-    # The following example illustrates configuring dock instances.
-    # docks: ['home_dock']  # Input your docks here
-    # home_dock:
-    #   type: 'simple_charging_dock'
-    #   frame: map
-    #   pose: [0.0, 0.0, 0.0]
+    tetra_charging_dock:
+      plugin: 'tetra_docking::TetraChargingDock'
+      docking_threshold: 0.05
+      staging_x_offset: -0.7
+      use_external_detection_pose: true
+      use_battery_status: false
+      use_stall_detection: false
+      marker_family: "tag36h11:"
+      camera_frame: "camera"
+      docking_status_topic: "docking_status"
+      contact_status_val: 2
+      reset_ekf_pose: true
+      home_x: -0.7
+      home_y: 0.0
+      filter_coef: 0.1
+
+    tetra_lift_load_dock:
+      plugin: 'tetra_docking::TetraLiftDock'
+      docking_threshold: 0.30
+      staging_x_offset: -1.5
+      use_external_detection_pose: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera"
+      lift_action_mode: 1
+      filter_coef: 0.1
+
+    tetra_lift_unload_dock:
+      plugin: 'tetra_docking::TetraLiftDock'
+      docking_threshold: 0.30
+      staging_x_offset: -1.5
+      use_external_detection_pose: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera"
+      lift_action_mode: 0
+      filter_coef: 0.1
 
     controller:
       k_phi: 3.0
       k_delta: 2.0
       v_linear_min: 0.15
       v_linear_max: 0.15
+
