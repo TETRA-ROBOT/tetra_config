@@ -47,8 +47,13 @@ def launch_setup(context, *args, **kwargs):
     lidar_topic = LaunchConfiguration('lidar_topic').perform(context)
     imu_topic = LaunchConfiguration('imu_topic').perform(context)
     mapping = LaunchConfiguration('mapping').perform(context).lower()
-    db_name = LaunchConfiguration('db_name').perform(context)
-    db_path = f'/home/tetra/.ros/{db_name}.db'
+    persistent_maps_dir = os.environ.get('TETRA_MAPS_DIR', '/home/tetra/tetra_integration/persistent/maps')
+    os.makedirs(persistent_maps_dir, exist_ok=True)
+    db_path = os.path.join(persistent_maps_dir, f'{db_name}.db')
+    if mapping == 'false' and not os.path.isfile(db_path):
+        legacy_path = f'/home/tetra/.ros/{db_name}.db'
+        if os.path.isfile(legacy_path):
+            db_path = legacy_path
 
     incremental_memory = 'true' if mapping == 'true' else 'false'
     initwmwithallnodes = 'false' if mapping == 'true' else 'true'
@@ -131,7 +136,7 @@ def launch_setup(context, *args, **kwargs):
             'Grid/CellSize': '0.05',
             'database_path': db_path,
             'Optimizer/Strategy': '1',
-            'Reg/Force3DoF', 'true', #add.. only 2D pose
+            'Reg/Force3DoF': 'true', #add.. only 2D pose
             
         }],
         #arguments=rtabmap_arguments,

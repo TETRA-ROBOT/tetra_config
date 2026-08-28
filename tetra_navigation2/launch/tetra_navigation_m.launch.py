@@ -59,9 +59,10 @@ def generate_launch_description():
     #    'office.yaml'
     #)
     
+    persistent_maps_dir = os.environ.get('TETRA_MAPS_DIR', '/home/tetra/tetra_integration/persistent/maps')
     # Dynamically constructed paths
     map_file_path = PathJoinSubstitution([
-        '/home/tetra/ros2_ws/src/tetra_navigation2', 'maps', LaunchConfiguration('map_name')
+        persistent_maps_dir, LaunchConfiguration('map_name')
     ])
 
     localization_launch = IncludeLaunchDescription(

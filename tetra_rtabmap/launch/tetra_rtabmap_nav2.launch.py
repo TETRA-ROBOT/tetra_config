@@ -69,7 +69,13 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = (use_sim_time_str == 'true')
     lidar_topic = LaunchConfiguration('lidar_topic').perform(context)
     db_name = LaunchConfiguration('db_name').perform(context)
-    db_path = f'/home/tetra/.ros/{db_name}.db'
+    persistent_maps_dir = os.environ.get('TETRA_MAPS_DIR', '/home/tetra/tetra_integration/persistent/maps')
+    os.makedirs(persistent_maps_dir, exist_ok=True)
+    db_path = os.path.join(persistent_maps_dir, f'{db_name}.db')
+    if not os.path.isfile(db_path):
+        legacy_path = f'/home/tetra/.ros/{db_name}.db'
+        if os.path.isfile(legacy_path):
+            db_path = legacy_path
 
     incremental_memory = 'false'
     initwmwithallnodes = 'true'
