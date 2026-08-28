@@ -16,10 +16,10 @@ from launch.actions import ExecuteProcess, IncludeLaunchDescription, DeclareLaun
 # this is the function launch  system will look for
 def generate_launch_description():
 
-    # tetra Motor Driver Board
-    tetra_node = Node(
-        package='tetra', 
-        executable='tetra',
+    # tetra_wheel_driver Board
+    tetra_wheel_driver_node = Node(
+        package='tetra_wheel_driver', 
+        executable='tetra_wheel_driver',
         output='screen',
         parameters=[
             {"m_bEKF_option": True} #default: False
@@ -37,10 +37,10 @@ def generate_launch_description():
             #remappings=[('/odometry/filtered', '/odom')],
     )
     
-    # tetra_interface Board
-    tetra_interface_node = Node(
-        package='tetra_interface', 
-        executable='tetra_interface',
+    # tetra_power_driver Board
+    tetra_power_driver_node = Node(
+        package='tetra_power_driver', 
+        executable='tetra_power_driver',
         output='screen',
         parameters=[
             {"m_bConveyor_option": False},
@@ -110,9 +110,9 @@ def generate_launch_description():
     # create and return launch description object
     return LaunchDescription(
         [
-            tetra_node,
+            tetra_wheel_driver_node,
             ekf_localization_node,
-            tetra_interface_node, 
+            tetra_power_driver_node, 
             iahrs_driver_node,
             joy_node,
             use_sim_time,

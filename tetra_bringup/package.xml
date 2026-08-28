@@ -17,8 +17,8 @@
   <exec_depend>rosbridge_server</exec_depend>
   <exec_depend>rosapi</exec_depend>
   <exec_depend>web_video_server</exec_depend>
-  <exec_depend>tetra</exec_depend>
-  <exec_depend>tetra_interface</exec_depend>
+  <exec_depend>tetra_wheel_driver</exec_depend>
+  <exec_depend>tetra_power_driver</exec_depend>
   <exec_depend>tetra_docking</exec_depend>
   <exec_depend>tetra_description</exec_depend>
 

@@ -29,13 +29,11 @@ Tetra Bringup 패키지는 Tetra 로봇의 초기화 및 설정을 담당합니�
 - **`ekf.yaml`**: EKF 로컬라이제이션을 위한 설정 파일로, 주로 로봇의 센서 데이터와 odometry 데이터를 통합하여 위치를 추정합니다.
 
 ## 주요 노드
-- **`tetra`**: Tetra 로봇의 메인 노드로, 로봇의 구동 및 센서 데이터를 처리합니다.
+- **`tetra_wheel_driver`**: TETRA 차륜 모터 드라이버 노드로, 로봇의 구동, 속도 명령 처리 및 오도메트리 데이터를 발행합니다.
 - **`robot_localization`**: EKF 로컬라이제이션 노드로, odometry와 IMU 데이터를 통합하여 로봇의 위치를 추정합니다.
-- **`tetra_interface`**: 로봇의 인터페이스 노드로, 추가적인 하드웨어 옵션을 설정합니다.
+- **`tetra_power_driver`**: 전원 관리 보드 드라이버 노드로, 배터리 상태, 충전 제어, 범퍼, GPIO, LED 및 초음파/컨베이어 옵션을 제어합니다.
 - **`iahrs_driver`**: IMU 센서 드라이버 노드로, IMU 데이터를 처리합니다.
-- **`joy_node`**: 조이스틱 입력을 처리하는 노드입니다.
 - **`robot_state_publisher`**: 로봇의 URDF를 퍼블리시하여 TF 트리를 생성합니다.
-- **`tetra_service`**: Tetra 로봇의 서비스 노드로, 다양한 서비스 요청을 처리합니다.
 - **`rosbridge_websocket`**: ROS와 웹 클라이언트 간의 통신을 위한 노드입니다.
 
 ## 사용 방법
