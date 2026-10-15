@@ -31,7 +31,7 @@ def generate_launch_description():
             executable='ekf_node',
             name='ekf_filter_node',
             output='screen',
-            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf.yaml')],
+            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf_sm.yaml')],
             arguments=['--ros-args', '--log-level', 'error']
             #remappings=[('/odometry/filtered', '/odom')],
     )
@@ -82,6 +82,7 @@ def generate_launch_description():
                     PathJoinSubstitution([
                         FindPackageShare('tetra_description'),
                         'urdf',
+                        'tetra_sm',
                         'tetra.xacro',
                     ]),
                 ]),
@@ -107,8 +108,16 @@ def generate_launch_description():
     
     # Kanavi R270
     kanavi_lidar_node = Node(
-        package='kanavilidar_ros_2', 
-        executable='kanavilidar_ros_2',
+        package='kanavi_vl',
+        executable='R270',
+        name='r270_node',
+        output='screen',
+        arguments=[
+            '-i', '192.168.123.100', '5000',
+            '-m', '224.0.0.5',
+            '-fix', 'lidar_link',
+            '-topic', 'points2',
+        ],
     )
     
     # pointcloud to scan
@@ -118,9 +127,10 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ('cloud_in', '/points2'),
+            ('scan', '/scan'),
         ],
         parameters=[{
-            'target_frame': 'camera1_link',
+            'target_frame': 'lidar_link',
             'transform_tolerance': 0.01,
             'min_height': 0.0,
             'max_height': 1.0,
@@ -133,6 +143,30 @@ def generate_launch_description():
             'use_inf': True,
             'inf_epsilon': 1.0
         }]
+    )
+
+    line_extraction_node = Node(
+        package='laser_line_extraction_ros2',
+        executable='line_extraction_node',
+        name='line_extractor_node',
+        output='screen',
+        # 튜닝값은 laser_line_extraction_ros2 example.launch.py(도킹용)에서 옮겨왔다.
+        parameters=[{
+            'frame_id': 'lidar_link',
+            'scan_topic': '/scan',
+            'publish_markers': True,
+            'bearing_std_dev': 1e-5,
+            'range_std_dev': 0.012,
+            'least_sq_angle_thresh': 0.0001,
+            'least_sq_radius_thresh': 0.0001,
+            'max_line_gap': 0.2,
+            'min_line_length': 0.15,
+            'min_range': 0.05,
+            'max_range': 1.0,
+            'min_split_dist': 0.04,
+            'outlier_dist': 0.06,
+            'min_line_points': 5,
+        }],
     )
     
     # create and return launch description object
@@ -149,6 +183,7 @@ def generate_launch_description():
             rosapi_node,
             kanavi_lidar_node,
             pointcloud_to_scan_node,
+            line_extraction_node,
             
 		# USB Camera
 		# IncludeLaunchDescription(
@@ -198,11 +233,6 @@ def generate_launch_description():
 		# 	[get_package_share_directory('laser_filters'), '/examples/angular_filter_example.launch.py']),
 		# ),
 
-        # laser line extraction
-		IncludeLaunchDescription(
-		PythonLaunchDescriptionSource(
-			[get_package_share_directory('laser_line_extraction_ros2'), '/launch/example.launch.py']),
-		),
         
         ]
     )

@@ -2,139 +2,52 @@
 """
 TETRA Unified Bringup Launch
 
-단일 런치 파일로 6종의 TETRA 모델(M, H, EDU, MH, S, SM)을 통합 실행합니다.
+robot_model 인자에 맞는 모델별 런치(tetra_bringup_<model>.launch.py)를 실행합니다.
+모델별 런치가 실제 센서 구성의 단일 출처이므로 이 파일은 노드를 직접 정의하지 않습니다.
 사용 예시:
   ros2 launch tetra_bringup tetra_bringup.launch.py robot_model:=m
-  ros2 launch tetra_bringup tetra_bringup.launch.py robot_model:=h
+  ros2 launch tetra_bringup tetra_bringup.launch.py robot_model:=mh use_rb10:=false
 """
 
 import os
 from typing import List
+
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, GroupAction
-from launch.conditions import IfCondition, LaunchConfigurationEquals
+from launch import LaunchContext, LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import LaunchConfiguration
+
+SUPPORTED_MODELS = ('m', 'h', 'edu', 'mh', 's', 'sm')
+
+
+def include_model_launch(context: LaunchContext) -> List[IncludeLaunchDescription]:
+    robot_model = LaunchConfiguration('robot_model').perform(context).lower()
+    # 잘못된 모델명이면 아무 노드도 뜨지 않은 채 정상 종료된 것처럼 보이므로 즉시 실패시킨다.
+    if robot_model not in SUPPORTED_MODELS:
+        raise RuntimeError(
+            f"지원하지 않는 robot_model '{robot_model}' (지원: {', '.join(SUPPORTED_MODELS)})")
+
+    model_launch_path = os.path.join(
+        get_package_share_directory('tetra_bringup'), 'launch', f'tetra_bringup_{robot_model}.launch.py')
+    # 모델별 추가 인자(use_rb10 등)는 명령줄에서 주면 하위 런치에도 그대로 전달된다.
+    return [IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(model_launch_path),
+        launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time')}.items(),
+    )]
 
 
 def generate_launch_description() -> LaunchDescription:
-    # 1. 런치 파라미터 정의
-    robot_model_arg = DeclareLaunchArgument(
-        'robot_model',
-        default_value='m',
-        description='로봇 모델 선택 (m, h, edu, mh, s, sm)'
-    )
-    use_sim_time_arg = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='false',
-        description='시뮬레이션 시간 사용 여부'
-    )
-    ekf_option_arg = DeclareLaunchArgument(
-        'ekf_option',
-        default_value='true',
-        description='EKF 센서 융합 활성화 여부'
-    )
-
-    robot_model = LaunchConfiguration('robot_model')
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    ekf_option = LaunchConfiguration('ekf_option')
-
-    # 2. 공통 하드웨어 드라이버 노드 (Wheel & Power)
-    wheel_driver_node = Node(
-        package='tetra_wheel_driver',
-        executable='tetra_wheel_driver',
-        name='tetra_wheel_driver',
-        output='screen',
-        parameters=[{
-            'm_bEKF_option': PythonExpression(["'", ekf_option, "' == 'true'"])
-        }]
-    )
-
-    power_driver_node = Node(
-        package='tetra_power_driver',
-        executable='tetra_power_driver',
-        name='tetra_power_driver',
-        output='screen',
-        parameters=[{
-            'm_bConveyor_option': False,
-            'm_bUltrasonic_option': False
-        }]
-    )
-
-    # 3. IMU 및 조이스틱 드라이버
-    imu_node = Node(
-        package='iahrs_driver',
-        executable='iahrs_driver',
-        name='iahrs_driver',
-        output='screen',
-        parameters=[{
-            'm_bSingle_TF_option': False
-        }]
-    )
-
-    joy_node = Node(
-        package='joy',
-        executable='joy_node',
-        name='joy_node',
-        output='screen',
-        parameters=[{
-            'deadzone': 0.05
-        }]
-    )
-
-    # 4. EKF Localization Filter
-    ekf_node = Node(
-        package='robot_localization',
-        executable='ekf_node',
-        name='ekf_filter_node',
-        output='screen',
-        parameters=[os.path.join(get_package_share_directory('tetra_bringup'), 'params', 'ekf.yaml')],
-        arguments=['--ros-args', '--log-level', 'error']
-    )
-
-    # 5. Robot State Publisher (URDF xacro)
-    rsp_node = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-            'robot_description': Command([
-                'xacro ',
-                PathJoinSubstitution([
-                    FindPackageShare('tetra_description'),
-                    'urdf',
-                    'tetra.xacro'
-                ])
-            ])
-        }]
-    )
-
-    # 6. rosbridge_server (웹 UI 연동 웹소켓 포트 9090)
-    rosbridge_node = Node(
-        package='rosbridge_server',
-        executable='rosbridge_websocket',
-        name='rosbridge_websocket',
-        output='screen',
-        parameters=[{
-            'port': 9090,
-            'max_message_size': 10000000
-        }]
-    )
-
     return LaunchDescription([
-        robot_model_arg,
-        use_sim_time_arg,
-        ekf_option_arg,
-        wheel_driver_node,
-        power_driver_node,
-        imu_node,
-        joy_node,
-        ekf_node,
-        rsp_node,
-        rosbridge_node
+        DeclareLaunchArgument(
+            'robot_model',
+            default_value='m',
+            description=f"로봇 모델 선택 ({', '.join(SUPPORTED_MODELS)})",
+        ),
+        DeclareLaunchArgument(
+            'use_sim_time',
+            default_value='false',
+            description='시뮬레이션 시간 사용 여부',
+        ),
+        OpaqueFunction(function=include_model_launch),
     ])

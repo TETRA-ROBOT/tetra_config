@@ -17,6 +17,24 @@
   <exec_depend>rosbridge_server</exec_depend>
   <exec_depend>rosapi</exec_depend>
   <exec_depend>web_video_server</exec_depend>
+  <exec_depend>iahrs_driver</exec_depend>
+  <exec_depend>usb_cam</exec_depend>
+  <exec_depend>apriltag_ros</exec_depend>
+  <exec_depend>sick_scan_xd</exec_depend>
+  <exec_depend>cyglidar_d1_ros2</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>cyglidar_d2_ros2</exec_depend>
+  <exec_depend>laser_filters</exec_depend>
+  <exec_depend>dual_laser_merger</exec_depend>
+  <exec_depend>kanavi_vl</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>laser_line_extraction_ros2</exec_depend>
+  <exec_depend>topic_tools</exec_depend>
+  <exec_depend>tetra_gpio_controller</exec_depend>
+  <exec_depend>herkulex</exec_depend>
+  <exec_depend>autonics_rgbd_ros</exec_depend>
+  <exec_depend>livox_ros_driver2</exec_depend>
+  <exec_depend>gscam</exec_depend>
   <exec_depend>tetra_wheel_driver</exec_depend>
   <exec_depend>tetra_power_driver</exec_depend>
   <exec_depend>tetra_docking</exec_depend>

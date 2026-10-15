@@ -15,6 +15,10 @@ from launch.actions import ExecuteProcess, IncludeLaunchDescription, DeclareLaun
 
 # this is the function launch  system will look for
 def generate_launch_description():
+    front_lidar_hostname = DeclareLaunchArgument('front_lidar_hostname', default_value='192.168.0.1')
+    rear_lidar_hostname = DeclareLaunchArgument('rear_lidar_hostname', default_value='192.168.0.2')
+    front_lidar_frame = DeclareLaunchArgument('front_lidar_frame', default_value='laser')
+    rear_lidar_frame = DeclareLaunchArgument('rear_lidar_frame', default_value='laser_link2')
 
     # tetra_wheel_driver Board
     tetra_wheel_driver_node = Node(
@@ -32,7 +36,7 @@ def generate_launch_description():
             executable='ekf_node',
             name='ekf_filter_node',
             output='screen',
-            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf.yaml')],
+            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf_h.yaml')],
             arguments=['--ros-args', '--log-level', 'error']
             #remappings=[('/odometry/filtered', '/odom')],
     )
@@ -106,10 +110,52 @@ def generate_launch_description():
         executable='rosapi_node',
         output='screen',
     )
+
+    # sick_tim_5xx.launch.py는 DeclareLaunchArgument 대신 sys.argv만 읽으므로
+    # include로 넘긴 인자가 무시된다. 두 대를 구분하려면 드라이버를 직접 실행해야 한다.
+    sick_launch_xml = os.path.join(
+        get_package_share_directory('sick_scan_xd'), 'launch', 'sick_tim_5xx.launch')
+    shadow_filter_params = os.path.join(
+        get_package_share_directory('tetra_bringup'), 'params', 'laser_shadow_filter.yaml')
+
+    def sick_lidar(position, scan_topic):
+        return Node(
+            package='sick_scan_xd',
+            executable='sick_generic_caller',
+            name=f'sick_tim_5xx_{position}',
+            output='screen',
+            arguments=[
+                sick_launch_xml,
+                ['hostname:=', LaunchConfiguration(f'{position}_lidar_hostname')],
+                ['frame_id:=', LaunchConfiguration(f'{position}_lidar_frame')],
+                f'nodename:=sick_tim_5xx_{position}',
+                f'laserscan_topic:={scan_topic}',
+                f'cloud_topic:=cloud_{position}',
+            ],
+        )
+
+    def shadow_filter(position, scan_topic, filtered_topic):
+        return Node(
+            package='laser_filters',
+            executable='scan_to_scan_filter_chain',
+            name=f'{position}_laser_filter',
+            output='screen',
+            remappings=[('scan', scan_topic), ('scan_filtered', filtered_topic)],
+            parameters=[shadow_filter_params],
+        )
+
+    front_lidar = sick_lidar('front', '/scan_front')
+    rear_lidar = sick_lidar('rear', '/scan_rear')
+    front_filter = shadow_filter('front', '/scan_front', '/scan_filtered_1')
+    rear_filter = shadow_filter('rear', '/scan_rear', '/scan_filtered_2')
     
     # create and return launch description object
     return LaunchDescription(
         [
+            front_lidar_hostname,
+            rear_lidar_hostname,
+            front_lidar_frame,
+            rear_lidar_frame,
             tetra_wheel_driver_node,
             ekf_localization_node,
             tetra_power_driver_node, 
@@ -120,17 +166,10 @@ def generate_launch_description():
             rosbridge_server,
             rosapi_node,
 			
-            # sick_tim_571_forward
-            IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                [get_package_share_directory('sick_scan_xd'), '/launch/sick_tim_5xx.launch.py']),
-            ),
-
-            # laser filter (shadow_filter)
-            IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                [get_package_share_directory('laser_filters'), '/examples/shadow_filter_example.launch.py']),
-            ),
+            front_lidar,
+            rear_lidar,
+            front_filter,
+            rear_filter,
 
             # laser merge
             IncludeLaunchDescription(

@@ -31,7 +31,7 @@ def generate_launch_description():
             executable='ekf_node',
             name='ekf_filter_node',
             output='screen',
-            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf.yaml')],
+            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf_m.yaml')],
             arguments=['--ros-args', '--log-level', 'error']
             #remappings=[('/odometry/filtered', '/odom')],
     )
@@ -160,11 +160,5 @@ def generate_launch_description():
 			[get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']), # rs_multi_camera_launch.py
 		),
 
-        # virtual_wall
-        IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [get_package_share_directory('virtual_wall'), '/launch/virtual_wall.launch.py']),
-        ),
-        
         ]
     )
