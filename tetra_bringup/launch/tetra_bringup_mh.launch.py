@@ -238,6 +238,8 @@ def generate_launch_description():
             joy_node,
             use_sim_time,
             rsp_node,
+            # 웹 관제가 로봇 위치로 쓰는 /footprint 를 TF(map/odom → base_footprint)에서 발행
+            Node(package='tetra_bringup', executable='robot_pose_publisher.py', name='robot_pose_publisher', output='screen'),
             rosbridge_server,
             rosapi_node,
             keepalive_relay,
@@ -268,10 +270,16 @@ def generate_launch_description():
                     [get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
             ),
 
-            # HerkuleX pan-tilt
+            # HerkuleX pan-tilt: 웹 관제의 허큘렉스 캘리브레이션 화면이 쓰는 서비스(herkulex/get_gain 등)를 제공하는 herkulex_driver 로 교체
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    PathJoinSubstitution([FindPackageShare('herkulex'), 'launch', 'herkulex_pantilt_launch.py'])),
+                    PathJoinSubstitution([FindPackageShare('herkulex_driver'), 'launch', 'herkulex_driver.launch.py'])),
+                launch_arguments={
+                    'serial_port': '/dev/ttyS2',
+                    'baud_rate': '115200',
+                    'model': '0602',
+                    'params_file': PathJoinSubstitution([FindPackageShare('tetra_bringup'), 'params', 'herkulex_mh.yaml']),
+                }.items(),
                 condition=IfCondition(LaunchConfiguration('use_herkulex')),
             ),
 

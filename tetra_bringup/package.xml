@@ -10,6 +10,10 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>herkulex_driver</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>robot_localization</exec_depend>
   <exec_depend>xacro</exec_depend>
@@ -31,7 +35,6 @@
   <exec_depend>laser_line_extraction_ros2</exec_depend>
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>tetra_gpio_controller</exec_depend>
-  <exec_depend>herkulex</exec_depend>
   <exec_depend>autonics_rgbd_ros</exec_depend>
   <exec_depend>livox_ros_driver2</exec_depend>
   <exec_depend>gscam</exec_depend>

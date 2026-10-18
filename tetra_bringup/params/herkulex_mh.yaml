@@ -1,0 +1,13 @@
+# MH 팬틸트용 herkulex_driver 파라미터 (https://github.com/dkswndud1992/herkulex_driver)
+# 예전 herkulex 패키지와 같은 포트·속도·축 구성: /dev/ttyS2, 115200bps, ID 1 = 팬, ID 2 = 틸트 (DRS-0602)
+herkulex_driver:
+  ros__parameters:
+    serial_port: "/dev/ttyS2"
+    baud_rate: 115200
+    model: "0602"
+    servo_ids: [1, 2]
+    servo_models: ["1:0602", "2:0602"]
+    status_rate: 10.0
+    auto_initialize: true
+    auto_torque_on: true
+    max_sync_packet_age_sec: 0.0

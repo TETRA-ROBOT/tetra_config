@@ -126,6 +126,8 @@ def generate_launch_description():
             joy_node,
             use_sim_time,
             rsp_node,
+            # 웹 관제가 로봇 위치로 쓰는 /footprint 를 TF(map/odom → base_footprint)에서 발행
+            Node(package='tetra_bringup', executable='robot_pose_publisher.py', name='robot_pose_publisher', output='screen'),
             rosbridge_server,
             rosapi_node,            
             web_video_server_node,
