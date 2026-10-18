@@ -38,20 +38,17 @@ def generate_launch_description():
     localization_params_path = os.path.join(
         get_package_share_directory('tetra_navigation2'),
         'params',
-        'amcl_localization.yaml'
+        'amcl_localization_s.yaml'
     )
 
     navigation_params_path = os.path.join(
         get_package_share_directory('tetra_navigation2'),
         'params',
-        'navigation.yaml'
+        'navigation_s.yaml'
     )
 
-    virtual_wall_launch_path = os.path.join(
-        get_package_share_directory('virtual_wall'),
-        'launch',
-        'virtual_wall.launch.py'
-    )
+    # 가상벽은 API 가 발행하는 /Local_virtual_wall, /Global_virtual_wall 을 costmap 장애물 레이어가 직접 읽는다.
+    # 없는 virtual_wall 패키지를 찾으면 런치 생성 단계에서 예외가 나서 내비게이션이 뜨지 않았다.
 
     #map_file_path = PathJoinSubstitution([
     #    pkg_bme_ros2_navigation, 'maps', LaunchConfiguration('map_name')
@@ -81,15 +78,10 @@ def generate_launch_description():
         }.items()
     )
 
-    virtual_wall_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(virtual_wall_launch_path),
-        launch_arguments={}.items()
-    )
 
     launchDescriptionObject = LaunchDescription()
     launchDescriptionObject.add_action(sim_time_arg)
     launchDescriptionObject.add_action(localization_launch)
     launchDescriptionObject.add_action(navigation_launch)
-    launchDescriptionObject.add_action(virtual_wall_launch)
 
     return launchDescriptionObject
