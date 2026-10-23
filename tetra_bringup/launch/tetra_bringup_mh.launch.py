@@ -42,7 +42,11 @@ def generate_launch_description():
         executable='tetra_wheel_driver',
         output='screen',
         parameters=[
-            {"m_bEKF_option": True} #default: False
+            {
+                # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
+                "robot_model": "mh",
+                "m_bEKF_option": True,  # default: False
+            }
         ]
     )
     
