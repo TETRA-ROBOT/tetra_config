@@ -222,7 +222,9 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
+                # docking_server 는 기본 cmd_vel 로 발행하는데 휠 드라이버는 cmd_vel 을 구독하지 않는다.
+                # Nav2 기본 구성처럼 최종 출력(collision_monitor 출력과 같은 cmd_vel_nav2)으로 보낸다
+                remappings=remappings + [('cmd_vel', 'cmd_vel_nav2')],
             ),
             Node(
                 package='nav2_lifecycle_manager',
@@ -304,7 +306,7 @@ def generate_launch_description():
                         plugin='opennav_docking::DockingServer',
                         name='docking_server',
                         parameters=[configured_params],
-                        remappings=remappings,
+                        remappings=remappings + [('cmd_vel', 'cmd_vel_nav2')],
                     ),
                     ComposableNode(
                         package='nav2_lifecycle_manager',
