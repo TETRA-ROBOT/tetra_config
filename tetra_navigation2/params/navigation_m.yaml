@@ -413,11 +413,6 @@ docking_server:
       camera_frame: "camera"
       docking_status_topic: "docking_status"
       contact_status_val: 2
-      # 도킹할 때마다 EKF 를 고정 map 좌표 (home_x, home_y) 로 리셋하는 기능이다. 도크 위치는 지도마다 DB 에 있어
-      # 고정 좌표와 다르면 접점이 붙는 순간 위치가 순간이동한다. 도크 포즈에서 계산하도록 바꾸기 전까지 끈다
-      reset_ekf_pose: false
-      home_x: -0.7
-      home_y: 0.0
       filter_coef: 0.1
 
     tetra_lift_load_dock:
