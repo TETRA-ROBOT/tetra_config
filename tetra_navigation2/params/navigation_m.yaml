@@ -380,7 +380,9 @@ docking_server:
     max_retries: 3
     base_frame: "base_footprint"
     fixed_frame: "odom"
-    dock_backwards: false
+    # M 은 후방 카메라로 마커를 보며 뒤로 도킹한다 (웹 옵션 docking_front: 0 과 맞춘다).
+    # Jazzy 는 방향을 서버에서 정하므로 모든 도킹 플러그인의 staging 자세도 도크를 등지도록 staging_yaw_offset 을 pi 로 둔다
+    dock_backwards: true
     dock_prestaging_tolerance: 0.5
 
     # Types of docks
@@ -390,6 +392,7 @@ docking_server:
       plugin: 'opennav_docking::SimpleChargingDock'
       docking_threshold: 0.05
       staging_x_offset: -0.7
+      staging_yaw_offset: 3.14159
       use_external_detection_pose: true
       use_battery_status: false # true
       use_stall_detection: false # true
@@ -406,6 +409,7 @@ docking_server:
       plugin: 'tetra_docking::TetraChargingDock'
       docking_threshold: 0.05
       staging_x_offset: -0.7
+      staging_yaw_offset: 3.14159
       use_external_detection_pose: true
       use_battery_status: false
       use_stall_detection: false
@@ -419,6 +423,7 @@ docking_server:
       plugin: 'tetra_docking::TetraLiftDock'
       docking_threshold: 0.30
       staging_x_offset: -1.5
+      staging_yaw_offset: 3.14159
       use_external_detection_pose: true
       marker_family: "tag36h11:"
       camera_frame: "camera"
@@ -429,6 +434,7 @@ docking_server:
       plugin: 'tetra_docking::TetraLiftDock'
       docking_threshold: 0.30
       staging_x_offset: -1.5
+      staging_yaw_offset: 3.14159
       use_external_detection_pose: true
       marker_family: "tag36h11:"
       camera_frame: "camera"
