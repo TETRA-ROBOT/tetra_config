@@ -464,3 +464,81 @@ collision_monitor:
       max_height: 2.0
       enabled: True
 
+
+# 충전 도킹 (EDU 와 같은 구성: 전방 RealSense 컬러 영상의 AprilTag 로 앞으로 도킹)
+# 이 구간이 없으면 docking_server 가 "Charging dock plugins not given!" 으로 configure 에 실패해
+# lifecycle_manager_navigation 이 Nav2 전체를 활성화하지 못한다.
+# 도크 기하(translation_x, docking_threshold, blind_approach_distance)는 EDU 실측값이다. SM 실기에서 다시 재야 한다
+docking_server:
+  ros__parameters:
+    controller_frequency: 50.0
+    initial_perception_timeout: 5.0
+    wait_charge_timeout: 5.0
+    dock_approach_timeout: 30.0
+    undock_linear_tolerance: 0.05
+    undock_angular_tolerance: 0.1
+    # 실패하면 그 자리에 멈추고 API 가 이유를 웹에 알린다 (재시도 후진이 staging 에 못 들어 30 초 헤맨 EDU 사례)
+    max_retries: 0
+
+    base_frame: "base_link"
+    fixed_frame: "odom"
+
+    # 0.5 면 축에서 비스듬히 선 자리에서도 Nav2 없이 바로 접근해 도중에 태그를 놓친다 (navigation_edu.yaml 참고)
+    dock_prestaging_tolerance: 0.15
+    dock_backwards: false
+
+    # API 는 충전 도킹을 tetra_charging_dock 으로 요청한다. 도킹 인스턴스는 API 가 지도의 도킹 위치로 reload_database 한다
+    dock_plugins: ['tetra_charging_dock']
+
+    tetra_charging_dock:
+      plugin: 'tetra_docking::TetraChargingDock'
+      docking_threshold: 0.03
+      # undock·재시도 후진 거리
+      staging_x_offset: -0.4
+      staging_yaw_offset: 0.0
+      use_battery_status: false
+      use_stall_detection: false
+
+      # RealSense 는 본체 가운데지만 RGB 센서는 왼쪽으로 치우쳐 있다. 컬러 광학 프레임을 써야
+      # 드라이버가 내는 camera1_link -> 컬러 센서 오프셋이 도크 자세에 반영된다 (camera1_link 를 쓰면 빠진다)
+      use_external_detection_pose: true
+      tag_tf_as_detection: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera1_color_optical_frame"
+      external_detection_timeout: 1.0
+      external_detection_rotation_pitch: 1.57
+      external_detection_rotation_roll: 0.0
+      external_detection_rotation_yaw: 0.0
+      external_detection_translation_x: -0.34
+      external_detection_translation_y: 0.0
+      filter_coef: 0.1
+
+      docking_status_topic: "docking_status"
+      contact_status_val: 2
+      charge_requires_contact: true
+      blind_approach_distance: 0.25
+      blind_approach_timeout: 8.0
+
+      # 태그 정렬 staging (navigation_edu.yaml 설명 참고). 비스듬한 자리에서 바로 접근하지 않고
+      # 태그 정면 축 위 0.6 m 지점으로 먼저 간다
+      tag_staging: true
+      tag_staging_distance: 0.6
+      tag_staging_distance_min: 0.45
+      tag_staging_distance_max: 0.95
+      camera_info_topic: "/camera1/color/camera_info"
+      tag_size: 0.1
+
+    controller:
+      k_phi: 3.0
+      k_delta: 2.0
+      v_linear_min: 0.05
+      v_linear_max: 0.10
+      v_angular_max: 0.15
+      slowdown_radius: 0.45
+      use_collision_detection: true
+      costmap_topic: "local_costmap/costmap_raw"
+      footprint_topic: "local_costmap/published_footprint"
+      transform_tolerance: 0.1
+      projection_time: 1.0
+      simulation_time_step: 0.1
+      dock_collision_threshold: 0.45

@@ -190,6 +190,30 @@ def generate_launch_description():
             kanavi_lidar_node,
             pointcloud_to_scan_node,
             line_extraction_node,
+
+            # 충전 도킹은 전방 RealSense 컬러 영상의 AprilTag(36h11, 0.1 m)로 한다 (navigation_sm.yaml docking_server).
+            # 공용 apriltag_detection.launch.py 는 /camera/image_raw 를 구독해 RealSense 영상을 받지 못하므로 EDU 와 같이 직접 띄운다
+            Node(
+                package='apriltag_ros',
+                executable='apriltag_node',
+                name='apriltag_node',
+                output='screen',
+                parameters=[{'family': '36h11', 'size': 0.1}],
+                remappings=[
+                    ('/image_rect', '/camera1/color/image_raw'),
+                    ('/camera_info', '/camera1/color/camera_info'),
+                ],
+            ),
+            # 카메라 이름 기본값(camera1)이어야 URDF camera1_link 아래로 컬러 광학 프레임 TF 가 붙는다.
+            # 드라이버가 camera1_link -> camera1_color_frame 으로 RGB 센서의 옆 오프셋을 낸다
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    [get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']),
+                launch_arguments={
+                    'rgb_camera.color_profile': '640x480x15',
+                    'enable_depth': 'false',
+                }.items(),
+            ),
             
 		# USB Camera
 		# IncludeLaunchDescription(
