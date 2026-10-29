@@ -1,6 +1,7 @@
 amcl:
   ros__parameters:
-    use_sim_time: true
+    # use_sim_time 은 런치 인자(실로봇 False / 시뮬 True)가 정한다. 여기서 true 로 박아 두면
+    # 실로봇에서도 /clock 없이 sim time 으로 떠서 AMCL 시계가 0 에 머문다.
     alpha1: 0.1
     alpha2: 0.1
     alpha3: 0.1
@@ -16,7 +17,11 @@ amcl:
     laser_likelihood_max_dist: 2.5 #2.0
     laser_max_range: 25.0 #100.0
     laser_min_range: -1.0
-    laser_model_type: "likelihood_field"
+    # likelihood_field 는 빔 점수를 '더해서' 가중치를 만든다. EDU(R270 3D→2D 슬라이스) 지도에서
+    # 13.5° 틀린 자세와 맞는 자세의 가중치 차이가 1.6 배뿐이라, 정지 상태 공분산이 ±13cm 에 머물고
+    # 오도메트리(바퀴만) 요 오차를 끝내 보정하지 못했다. _prob 는 빔 확률을 곱해서(로그 합) 같은 비교가
+    # 32 nats 차이로 벌어진다. z_rand 0.5 가 사람 같은 동적 장애물 빔 하나의 감점을 log(0.02) 로 묶어 준다.
+    laser_model_type: "likelihood_field_prob"
     max_beams: 60
     max_particles: 3000
     min_particles: 500
