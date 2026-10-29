@@ -12,6 +12,10 @@ bt_navigator:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+    # EDU 는 후방 센서가 없어 뒤를 보지 못한 채 후진하면 안 된다. Nav2 기본 BT 는 복구 단계에서 BackUp(0.3 m 후진)을 하므로
+    # BackUp 만 뺀 EDU 전용 사본을 쓴다 (costmap 초기화·Spin·Wait 은 그대로)
+    default_nav_to_pose_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_to_pose_w_replanning_and_recovery_edu.xml"
+    default_nav_through_poses_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_through_poses_w_replanning_and_recovery_edu.xml"
     use_feedback: true
     error_code_names:
       - compute_path_error_code
@@ -62,6 +66,9 @@ controller_server:
       use_velocity_scaled_lookahead_dist: false
 
       # Rotate to Heading Configuration (Rotate in place before tracking path)
+      # EDU 는 후방 센서가 없어 후진하면 안 된다. 경로가 뒤쪽이면 후진 대신 제자리 회전으로 방향을 맞춘다
+      # (allow_reversing 과 use_rotate_to_heading 은 동시에 true 일 수 없다)
+      allow_reversing: false
       use_rotate_to_heading: true
       rotate_to_heading_angular_vel: 0.785398
       rotate_to_heading_min_angle: 0.785398    # Rotate in place if heading error >= 45 degrees
@@ -164,7 +171,8 @@ global_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: virtual_obstacle_source points2
+        # 소스 이름은 아래 정의(points)와 같아야 한다. 정의 없는 이름(points2)은 LaserScan 기본값으로 /points2 를 구독해 타입이 맞지 않아 전역 costmap 에 라이다 장애물이 빠졌다
+        observation_sources: virtual_obstacle_source points
         # 2D LiDAR Source (/poinst2)
         points:
           topic: /points2
@@ -240,15 +248,13 @@ behavior_server:
     transform_tolerance: 0.1
 
     # Active Recovery Behavior Plugins
-    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    # EDU 는 후방 센서가 없어 후진 복구를 쓰지 않는다. backup 은 항상 후진이고 drive_on_heading 도 음수 거리면 후진하므로 둘 다 뺀다
+    # (EDU 전용 BT 에서도 BackUp 을 뺐다. 다시 넣으면 BT 가 /backup 액션 서버를 찾지 못해 실패한다)
+    behavior_plugins: ["spin", "assisted_teleop", "wait"]
     
     # Plugin Declarations
     spin:
       plugin: "nav2_behaviors::Spin"
-    backup:
-      plugin: "nav2_behaviors::BackUp"
-    drive_on_heading:
-      plugin: "nav2_behaviors::DriveOnHeading"
     assisted_teleop:
       plugin: "nav2_behaviors::AssistedTeleop"
     wait:
@@ -287,7 +293,9 @@ velocity_smoother:
 
     # Velocity Limits [x, y, theta]
     max_velocity: [2.0, 0.0, 2.0]
-    min_velocity: [-2.0, 0.0, -2.0]
+    # EDU 는 후방 센서가 없어 후진하면 안 된다. 컨트롤러·behavior_server 가 음수 x 를 내도 여기서 0 으로 잘라 마지막 방어선으로 둔다
+    # (회전은 양방향 그대로 허용. docking_server 는 이 노드를 거치지 않는다)
+    min_velocity: [0.0, 0.0, -2.0]
 
     # Acceleration & Deceleration Limits [x, y, theta]
     max_accel: [0.3, 0.0, 3.3]
@@ -372,66 +380,61 @@ docking_server:
     dock_approach_timeout: 30.0
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
-    max_retries: 3
+    # 재시도는 staging 자세까지 후진한 뒤 다시 들어간다. EDU 는 후방 센서가 없어 후진 횟수를 1회로 줄인다
+    max_retries: 1
 
     # Frames & Topics
     base_frame: "base_link"
     fixed_frame: "odom"
-    odom_topic: "/odometry/filtered"
-    odom_duration: 0.3
 
     dock_prestaging_tolerance: 0.5
-    introspection_mode: "disabled"
+    # EDU 는 전방 RealSense 로 태그를 보며 앞으로 도킹한다 (웹 옵션 docking_front: 1, 예전 EDU 도 전방 도킹)
     dock_backwards: false
 
-    # Dock Plugins Configuration
-    dock_plugins: ['nova_carter_dock']
+    # API 는 충전 도킹을 tetra_charging_dock 으로 요청하고 언도킹도 이 유형으로 보낸다.
+    # 도킹 인스턴스는 API 가 지도의 도킹 위치로 reload_database 한다 (도킹 위치가 없으면 API 가 태그 검출만으로 도킹한다)
+    dock_plugins: ['tetra_charging_dock']
 
-    nova_carter_dock:
-      plugin: 'opennav_docking::SimpleChargingDock'
-      docking_threshold: 0.05
-      staging_x_offset: -0.7
-
-      # Direction & Batter Status
-      dock_direction: "forward" # "backward"
-      use_battery_status: false # true
+    tetra_charging_dock:
+      plugin: 'tetra_docking::TetraChargingDock'
+      # 도킹 완료는 접점(docking_status >= 2)으로 판정한다. 자세 판정(도크 자세 ± docking_threshold)이 먼저 걸리면
+      # 접점 없이 성공으로 끝나므로 (실측 -0.40 에서 그랬다) 도크 자세는 접점보다 약간 안쪽에 두고 판정 거리는 좁힌다.
+      # 실측 (2026-10-29) 접점은 base_link-태그 거리 약 0.39~0.40 m 에서 붙는다. 자세 판정은 0.37 m 라 접점이 안 잡혀도 2 cm 안에서 멈춘다
+      docking_threshold: 0.03
+      # undock 과 재시도는 이 거리만큼 후진한다. 후방 센서가 없어 짧게 둔다 (staging 에서 카메라-태그 약 0.7 m 라 검출에 충분)
+      staging_x_offset: -0.4
+      staging_yaw_offset: 0.0
+      use_battery_status: false
       use_stall_detection: false
-      rotate_to_dock: false
 
-      # External Detection (AprilTag / Vision Detector)
+      # apriltag 노드의 태그 TF (camera1_color_optical_frame 기준)를 검출 자세로 쓴다
       use_external_detection_pose: true
-      detector_service_name: '/detector/toggle'
-      detector_service_timeout: 5.0
+      tag_tf_as_detection: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera1_color_optical_frame"
       external_detection_timeout: 1.0
-      subscribe_toggle: true
-
-      # Camera Tag -> Dock Charging Port TF Calibration Offsets
-      external_detection_translation_x: -0.18
-      external_detection_translation_y: 0.0
-      external_detection_rotation_roll: -1.57
-      external_detection_rotation_pitch: -1.57
+      # apriltag_ros 태그 프레임은 z 가 카메라 쪽을 향한다. Y 축 +90도로 도크 x 축을 태그 안쪽(-z)으로 돌린다.
+      # (nova_carter 기본값 -1.57/-1.57 은 z 가 태그 안쪽인 Isaac 규약이라 도크가 180도 뒤집힌다)
+      external_detection_rotation_pitch: 1.57
+      external_detection_rotation_roll: 0.0
       external_detection_rotation_yaw: 0.0
+      # 태그면 -> 도킹을 마친 base_link 위치 (위 실측 참고)
+      external_detection_translation_x: -0.34
+      external_detection_translation_y: 0.0
       filter_coef: 0.1
 
-    # Dock Instances
-    docks: ['home_dock']
-    home_dock:
-      type: 'nova_carter_dock'
-      frame: map
-      pose: [0.0, 0.0, 0.0]
-      id: '0'
+      docking_status_topic: "docking_status"
+      contact_status_val: 2
 
     # Docking Controller
     controller:
       k_phi: 3.0
       k_delta: 2.0
       v_linear_min: 0.05
-      v_linear_max: 0.15
+      # 언도킹 후진도 이 속도를 쓴다. 후방 센서가 없어 느리게 둔다
+      v_linear_max: 0.10
       v_angular_max: 0.15
       slowdown_radius: 0.45
-
-      rotate_to_heading_angular_vel: 0.1
-      rotate_to_heading_max_angular_accel: 0.2
 
       # Collision Avoidance during Docking
       use_collision_detection: true
@@ -440,7 +443,8 @@ docking_server:
       transform_tolerance: 0.1
       projection_time: 1.0
       simulation_time_step: 0.1
-      dock_collision_threshold: 0.3
+      # 도크 상자(높이 약 0.2 m)가 depth 장애물로 잡힌다. 목표가 0.25 m 더 안쪽으로 투영되므로 접촉 직전 자세까지 검사에서 뺀다
+      dock_collision_threshold: 0.45
 
 route_server:
   ros__parameters:
