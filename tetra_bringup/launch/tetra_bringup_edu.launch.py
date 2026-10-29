@@ -10,6 +10,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 # this is the function launch  system will look for
@@ -24,6 +25,8 @@ def generate_launch_description():
             {
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "edu",
+                # EDU 메인보드는 구동보드가 ttyS2 에 붙는다 (코드 기본값 ttyS0 은 다른 모델 배선). 예전 tetra 노드도 ttyS2 를 고정으로 열었다
+                "port": "/dev/ttyS2",
                 "m_bEKF_option": True,  # default: False
             }
         ]
@@ -46,6 +49,8 @@ def generate_launch_description():
         executable='tetra_power_driver',
         output='screen',
         parameters=[
+            # EDU 는 전원보드가 ttyS3 에 붙는다 (코드 기본값 ttyS1 은 다른 모델 배선). 예전 tetra_interface 도 ttyS3 를 고정으로 열었다
+            {"port": "/dev/ttyS3"},
             {"m_bConveyor_option": False},
             {"m_bUltrasonic_option": False}
         ]
@@ -70,7 +75,9 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'robot_description':
+            # xacro 결과를 문자열로 못박는다. 그냥 두면 launch 가 YAML 로 읽으려 해서, URDF 주석에 ': ' 가 들어가면
+            # (예: camera_joint 보정 설명) 'Unable to parse ... as yaml' 로 브링업 전체가 뜨지 않는다
+            'robot_description': ParameterValue(
                 Command([
                     'xacro ',
                     PathJoinSubstitution([
@@ -80,6 +87,8 @@ def generate_launch_description():
                         'tetra.xacro',
                     ]),
                 ]),
+                value_type=str,
+            ),
         }]
     )
     
@@ -166,16 +175,34 @@ def generate_launch_description():
             pointcloud_to_scan_node,
             web_video_server_node,
 
-        # apriltag_ros 
-		IncludeLaunchDescription(
-		PythonLaunchDescriptionSource(
-			[get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
+        # apriltag_ros
+		# 공용 apriltag_detection.launch.py 는 /camera/image_raw 를 구독해 EDU 의 RealSense 컬러 영상을 받지 못한다.
+		# 예전 EDU 와 같이 컬러 영상(36h11, 0.1 m 태그)을 보도록 여기서 직접 띄운다
+		Node(
+			package='apriltag_ros',
+			executable='apriltag_node',
+			name='apriltag_node',
+			output='screen',
+			parameters=[{'family': '36h11', 'size': 0.1}],
+			remappings=[
+				('/image_rect', '/camera1/color/image_raw'),
+				('/camera_info', '/camera1/color/camera_info'),
+			],
 		),
 
-		# realsense D455
+		# realsense D435
+		# 카메라 이름은 기본값(camera1)을 둔다: 관제 기본 영상 토픽이 /camera1/color/image_raw 이고 URDF 의 camera1_link 에 TF 가 붙는다.
+		# depth 는 라이다(R270)가 못 보는 높이의 장애물을 보고 센서 TF 를 맞춰 보는 데 쓴다.
+		# 컬러·depth 모두 640x480@15 로 두어 드라이버 기본값(depth 30fps)보다 USB 대역폭·CPU 를 줄인다
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']),
+		launch_arguments={
+			'rgb_camera.color_profile': '640x480x15',
+			'enable_depth': 'true',
+			'depth_module.depth_profile': '640x480x15',
+			'pointcloud.enable': 'true',
+		}.items(),
 		),
 
         ]
