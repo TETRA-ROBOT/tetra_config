@@ -142,9 +142,17 @@ def generate_launch_description():
 		),
         
         # apriltag_ros
-		IncludeLaunchDescription(
-		PythonLaunchDescriptionSource(
-			[get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
+		# 공용 런치는 USB 카메라(/camera/image_raw)를 구독한다. MH 는 RealSense 컬러 영상에서 36h11, 0.1 m 태그를 찾는다
+		Node(
+			package='apriltag_ros',
+			executable='apriltag_node',
+			name='apriltag_node',
+			output='screen',
+			parameters=[{'family': '36h11', 'size': 0.1}],
+			remappings=[
+				('/image_rect', '/camera1/color/image_raw'),
+				('/camera_info', '/camera1/color/camera_info'),
+			],
 		),
 			
 		## sick_tim_571

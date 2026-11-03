@@ -37,7 +37,8 @@ amcl:
     z_max: 0.05
     z_rand: 0.5
     z_short: 0.05
-    scan_topic: scan
+    # MH 브링업은 두 SICK 를 /scan_front·/scan_rear 로 내고 /scan_merge 로 합친다. /scan 발행자가 없어 AMCL 이 위치를 못 잡았다
+    scan_topic: scan_merge
     map_topic: map
     set_initial_pose: true
     always_reset_initial_pose: false

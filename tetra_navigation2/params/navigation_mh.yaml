@@ -350,17 +350,110 @@ collision_monitor:
         linear_max: 0.0
         theta_min: -0.1
         theta_max: 0.1
-    observation_sources: ["scan", "scan_b"]
-    scan:
+    # MH 브링업은 /scan·/scan_b 를 내지 않는다 (두 SICK 는 /scan_front·/scan_rear, 합친 결과는 /scan_merge).
+    # 없는 토픽을 소스로 두면 "invalid source" 로 항상 정지 명령을 내 Nav2 가 한 발짝도 움직이지 못했다
+    observation_sources: ["scan_merge"]
+    scan_merge:
       type: "scan"
-      topic: "scan"
-      min_height: 0.15
-      max_height: 2.0
-      enabled: True
-    scan2:
-      type: "scan"
-      topic: "scan_b"
+      topic: "/scan_merge"
       min_height: 0.15
       max_height: 2.0
       enabled: True
 
+
+# 이 섹션이 없으면 docking_server 가 configure 에 실패해(dock 플러그인 없음) 웹 관제의 도킹·언도킹이 동작하지 않았다.
+# EDU 와 같은 전방 RealSense 태그 도킹을 기반으로 하고, 기하값은 MH 실측(2026-11-03, 충전 중 자세)으로 맞췄다:
+#   도킹 완료 자세에서 base_link -> 태그 = x 0.677 m, y -0.007 m, z 0.166 m (앞 범퍼 x 0.4 m 에서 태그까지 약 0.28 m)
+#   카메라(camera1_color_optical_frame) x 0.366 m -> 도킹 때 카메라-태그 약 0.31 m, 태그가 카메라와 거의 같은 높이라 끝까지 시야 안
+# 태그: 36h11, 0.1 m (예전 MH ros2_ws 와 같음). 웹 옵션 docking_front: 1 (전방 도킹)
+docking_server:
+  ros__parameters:
+    controller_frequency: 50.0
+    initial_perception_timeout: 5.0
+    wait_charge_timeout: 5.0
+    dock_approach_timeout: 30.0
+    undock_linear_tolerance: 0.05
+    undock_angular_tolerance: 0.1
+    # 처음 시험하는 설정이라 실패하면 재시도 후진 없이 그 자리에 멈추고 API 가 이유를 웹에 알린다
+    max_retries: 0
+
+    base_frame: "base_link"
+    fixed_frame: "odom"
+    dock_prestaging_tolerance: 0.15
+    dock_backwards: false
+
+    # API 는 충전 도킹·언도킹을 tetra_charging_dock 으로 요청한다 (도킹 인스턴스는 API 가 지도의 도킹 위치로 reload_database 한다)
+    dock_plugins: ['tetra_charging_dock']
+
+    tetra_charging_dock:
+      plugin: 'tetra_docking::TetraChargingDock'
+      # 도크 자세 도착 판정 폭. 관리자 설정의 도킹 영점(docking_offset_x)으로 도크 자세를 충전기 바로 앞에 맞추므로
+      # 판정 폭이 넓으면(예: 0.03) 충전기에 닿기 전에 "도착"으로 멈춰 접점이 안 붙는다. 접점이 먼저 오면 그대로 성공이다
+      docking_threshold: 0.005
+      # 도착을 도크 축 깊이로만 본다 (좌우 잔여 오차 1~2 cm 때문에 5 mm 판정이 끝내 안 맞아 충전기를 밀던 것을 막는다)
+      docked_by_depth: true
+      # 언도킹 후진 거리. MH 는 후방 라이다가 있지만 처음엔 EDU 와 같이 짧게 둔다
+      staging_x_offset: -0.4
+      staging_yaw_offset: 0.0
+      use_battery_status: false
+      use_stall_detection: false
+
+      use_external_detection_pose: true
+      tag_tf_as_detection: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera1_color_optical_frame"
+      external_detection_timeout: 1.0
+      # apriltag_ros 태그 프레임은 z 가 카메라 쪽을 향한다. Y 축 +90도로 도크 x 축을 태그 안쪽(-z)으로 돌린다 (EDU 와 같음).
+      # 실측(2026-11-03): 태그 위치는 카메라-태그 0.3~1.3 m 에서 1 cm 안으로 일정했지만 태그 방향은 보는 자리마다 2~4도 달라졌다.
+      # 도킹된 세 자세에서 이 값으로 구한 도크 방향은 -2.1, +0.6, -0.8도로 한쪽으로 치우치지 않아 보정하지 않는다
+      external_detection_rotation_pitch: 1.57
+      external_detection_rotation_roll: 0.0
+      external_detection_rotation_yaw: 0.0
+      # 태그면 -> 도킹을 마친 base_link 위치
+      # 실측(2026-11-03 13:25): 0.075 m/s 로 들어가 base_link-태그 0.673 m 에서 충전기에 닿아 바로 멈췄고(앞 범퍼 눌림),
+      # 접점(docking_status 5)은 그 0.3 초 뒤에 왔다. 손으로 붙인 자세(0.677 m)는 범퍼 없이 충전됐다.
+      # 지금 값은 도크 자세가 충전기 몸체보다 2.8 cm 안쪽이라 감속 전에 닿아, 충전 중 범퍼가 눌린 채 남는다
+      external_detection_translation_x: -0.645
+      external_detection_translation_y: 0.0
+      filter_coef: 0.1
+
+      docking_status_topic: "docking_status"
+      contact_status_val: 2
+      charge_requires_contact: true
+      blind_approach_distance: 0.25
+      blind_approach_timeout: 8.0
+      # bumper_data 비트 (예전 MH tetra.cpp, tetra_wheel_driver 와 같음): 0x01 앞 범퍼, 0x02 서보 꺼짐, 0x08 뒤 범퍼.
+      # 구동 보드는 범퍼만으로 서보를 끄지 않는다. 접근 중 접점 없이 앞 범퍼가 1.5 초 넘게 눌리면 멈춘다
+      # (실기 12:58: 앞 범퍼는 접점과 같은 순간에 눌려 접점이 먼저 판정됐다)
+      bumper_topic: "bumper_data"
+      bumper_mask: 1
+      bumper_grace: 1.5
+      # 언도킹 후진 중 뒤 범퍼가 눌리면 바로 멈춘다
+      undock_bumper_mask: 8
+      heading_priority_near: 0.15
+      heading_priority_far: 0.30
+
+      # 태그가 보이면 태그 정면 축 위 staging 으로 Nav2 주행한 뒤 직선 접근. 0.75 m 면 카메라-태그 약 1.03 m (태그 약 59 px)
+      tag_staging: true
+      tag_staging_distance: 0.75
+      tag_staging_distance_min: 0.45
+      tag_staging_distance_max: 0.95
+      camera_info_topic: "/camera1/color/camera_info"
+      tag_size: 0.1
+
+    controller:
+      k_phi: 5.0
+      k_delta: 3.0
+      v_linear_min: 0.05
+      v_linear_max: 0.10
+      v_angular_max: 0.15
+      slowdown_radius: 0.45
+
+      use_collision_detection: true
+      costmap_topic: "local_costmap/costmap_raw"
+      footprint_topic: "local_costmap/published_footprint"
+      transform_tolerance: 0.1
+      projection_time: 1.0
+      simulation_time_step: 0.1
+      # 충전기 본체(앞 범퍼에서 태그까지 약 0.28 m)가 장애물로 잡힌다. 도크 자세 0.45 m 안에서는 충돌 검사에서 뺀다
+      dock_collision_threshold: 0.45

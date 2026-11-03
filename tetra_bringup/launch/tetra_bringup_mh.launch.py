@@ -312,10 +312,18 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration('use_realsense')),
             ),
 
-            # apriltag_ros
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    [get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
+            # apriltag_ros: 공용 apriltag_detection.launch.py 는 M 의 USB 카메라(/camera/image_raw)를 구독해 MH 의 RealSense 영상을 받지 못한다.
+            # 예전 MH(ros2_ws)와 같이 RealSense 컬러 영상에서 36h11, 0.1 m 태그를 찾는다 (도킹 플러그인이 이 태그 TF 를 쓴다)
+            Node(
+                package='apriltag_ros',
+                executable='apriltag_node',
+                name='apriltag_node',
+                output='screen',
+                parameters=[{'family': '36h11', 'size': 0.1}],
+                remappings=[
+                    ('/image_rect', '/camera1/color/image_raw'),
+                    ('/camera_info', '/camera1/color/camera_info'),
+                ],
             ),
 
             # HerkuleX pan-tilt: 웹 관제의 허큘렉스 캘리브레이션 화면이 쓰는 서비스(herkulex/get_gain 등)를 제공하는 herkulex_driver 로 교체
