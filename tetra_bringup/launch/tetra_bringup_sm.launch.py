@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import yaml
 
 from ament_index_python.packages import get_package_share_directory
@@ -10,6 +11,10 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
+
+# 같은 디렉터리의 공용 모듈: ttyS 포트를 스캔해 구동·전원보드와 IMU 위치를 찾는다
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tetra_serial_ports import serial_port_actions  # noqa: E402
 
 
 # this is the function launch  system will look for
@@ -24,6 +29,7 @@ def generate_launch_description():
             {
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "sm",
+                "port": LaunchConfiguration('wheel_port'),
                 "m_bEKF_option": True,  # default: False
             }
         ]
@@ -46,6 +52,7 @@ def generate_launch_description():
         executable='tetra_power_driver',
         output='screen',
         parameters=[
+            {"port": LaunchConfiguration('power_port')},
             {"m_bConveyor_option": False},
             {"m_bUltrasonic_option": False}
         ]
@@ -57,6 +64,7 @@ def generate_launch_description():
         executable='iahrs_driver',
         output='screen',
         parameters=[
+            {"port": LaunchConfiguration('imu_port')},
             {"m_bSingle_TF_option": False} # default: True
         ]
     )
@@ -176,6 +184,8 @@ def generate_launch_description():
     # create and return launch description object
     return LaunchDescription(
         [
+            # 드라이버 노드보다 먼저 와야 노드가 스캔한 포트를 받는다
+            *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
             ekf_localization_node,
             tetra_power_driver_node, 

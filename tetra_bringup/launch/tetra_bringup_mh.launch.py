@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import yaml
 
 from ament_index_python.packages import get_package_share_directory
@@ -10,6 +11,10 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
+
+# 같은 디렉터리의 공용 모듈: ttyS 포트를 스캔해 구동·전원보드와 IMU 위치를 찾는다
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tetra_serial_ports import serial_port_actions  # noqa: E402
 from launch.actions import ExecuteProcess, IncludeLaunchDescription, DeclareLaunchArgument, TimerAction
 from launch.conditions import IfCondition
 
@@ -35,6 +40,7 @@ def generate_launch_description():
     autonics_ip = DeclareLaunchArgument('autonics_ip', default_value='192.168.0.200')
     autonics_uart = DeclareLaunchArgument('autonics_uart', default_value='/dev/ai_camera')
     rb10_ip = DeclareLaunchArgument('rb10_ip', default_value='10.0.2.7')
+    herkulex_port = DeclareLaunchArgument('herkulex_port', default_value='/dev/ttyS2')
 
     # tetra_wheel_driver Board
     tetra_wheel_driver_node = Node(
@@ -45,6 +51,7 @@ def generate_launch_description():
             {
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "mh",
+                "port": LaunchConfiguration('wheel_port'),
                 "m_bEKF_option": True,  # default: False
             }
         ]
@@ -67,6 +74,7 @@ def generate_launch_description():
         executable='tetra_power_driver',
         output='screen',
         parameters=[
+            {"port": LaunchConfiguration('power_port')},
             {"m_bConveyor_option": False},
             {"m_bUltrasonic_option": False}
         ]
@@ -78,6 +86,7 @@ def generate_launch_description():
         executable='iahrs_driver',
         output='screen',
         parameters=[
+            {"port": LaunchConfiguration('imu_port')},
             {"m_bSingle_TF_option": False} # default: True
         ]
     )
@@ -210,6 +219,40 @@ def generate_launch_description():
             parameters=[shadow_filter_params],
         )
 
+    laser_merger_node = Node(
+        package='dual_laser_merger',
+        executable='dual_laser_merger_node',
+        name='dual_laser_merger',
+        output='screen',
+        parameters=[{
+            'laser_1_topic': '/scan_filtered_1',
+            'laser_2_topic': '/scan_filtered_2',
+            'merged_scan_topic': '/scan_merge',
+            'target_frame': 'laser_merge',
+            'laser_1_x_offset': 0.0,
+            'laser_1_y_offset': 0.0,
+            'laser_1_yaw_offset': 0.0,
+            'laser_2_x_offset': -0.04,
+            'laser_2_y_offset': 0.0,
+            'laser_2_yaw_offset': 0.0,
+            'tolerance': 0.01,
+            'queue_size': 1000,
+            'angle_increment': 0.001,
+            'scan_time': 0.067,
+            'range_min': 0.01,
+            'range_max': 20.0,
+            'min_height': -1.0,
+            'max_height': 1.0,
+            'angle_min': -3.141592654,
+            'angle_max': 3.141592654,
+            'inf_epsilon': 1.0,
+            'use_inf': True,
+            'allowed_radius': 0.45,
+            'enable_shadow_filter': False,
+            'enable_average_filter': False,
+        }],
+    )
+
     front_lidar = sick_lidar('front', '/scan_front')
     rear_lidar = sick_lidar('rear', '/scan_rear')
     front_filter = shadow_filter('front', '/scan_front', '/scan_filtered_1')
@@ -234,6 +277,9 @@ def generate_launch_description():
             autonics_ip,
             autonics_uart,
             rb10_ip,
+            herkulex_port,
+            # 드라이버 노드보다 먼저 와야 노드가 스캔한 포트를 받는다
+            *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
             ekf_localization_node,
             tetra_power_driver_node, 
@@ -255,11 +301,9 @@ def generate_launch_description():
             front_filter,
             rear_filter,
 
-            # laser merge
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    [get_package_share_directory('dual_laser_merger'), '/demo_laser_merger.launch.py']),
-            ),
+            # laser merge: demo_laser_merger.launch.py 의 컴포넌트 컨테이너는 런치가 보내는 load_node 요청이
+            # 서비스 매칭 전에 나가 유실되면 merger 가 영영 안 뜬다(/scan_merge 없음, 재시작마다 랜덤). 단독 노드로 같은 파라미터를 쓴다
+            laser_merger_node,
 
             # realsense: use 플래그가 false일 때 패키지가 없어도 파싱되도록 FindPackageShare 사용
             IncludeLaunchDescription(
@@ -279,7 +323,7 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     PathJoinSubstitution([FindPackageShare('herkulex_driver'), 'launch', 'herkulex_driver.launch.py'])),
                 launch_arguments={
-                    'serial_port': '/dev/ttyS2',
+                    'serial_port': LaunchConfiguration('herkulex_port'),
                     'baud_rate': '115200',
                     'model': '0602',
                     'params_file': PathJoinSubstitution([FindPackageShare('tetra_bringup'), 'params', 'herkulex_mh.yaml']),
