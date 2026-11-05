@@ -40,15 +40,19 @@ IMU_REPLY_TIMEOUT_SEC = 0.2
 
 def _open_raw_115200(port_path: str) -> int:
     port_fd = os.open(port_path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
-    attributes = termios.tcgetattr(port_fd)
-    attributes[0] = 0  # iflag: 소프트웨어 흐름 제어·변환 없음
-    attributes[1] = 0  # oflag
-    attributes[2] = termios.B115200 | termios.CS8 | termios.CREAD | termios.CLOCAL
-    attributes[3] = 0  # lflag: raw
-    attributes[4] = termios.B115200
-    attributes[5] = termios.B115200
-    termios.tcsetattr(port_fd, termios.TCSANOW, attributes)
-    termios.tcflush(port_fd, termios.TCIOFLUSH)
+    try:
+        attributes = termios.tcgetattr(port_fd)
+        attributes[0] = 0  # iflag: 소프트웨어 흐름 제어·변환 없음
+        attributes[1] = 0  # oflag
+        attributes[2] = termios.B115200 | termios.CS8 | termios.CREAD | termios.CLOCAL
+        attributes[3] = 0  # lflag: raw
+        attributes[4] = termios.B115200
+        attributes[5] = termios.B115200
+        termios.tcsetattr(port_fd, termios.TCSANOW, attributes)
+        termios.tcflush(port_fd, termios.TCIOFLUSH)
+    except termios.error:
+        os.close(port_fd)
+        raise
     return port_fd
 
 
@@ -97,9 +101,11 @@ def is_imu_reply(reply: bytes) -> bool:
 
 def identify_device(port_path: str) -> Optional[str]:
     """포트에 붙은 장치를 'wheel' / 'power' / 'imu' 로 가린다. 응답이 없거나 모르는 장치면 None."""
+    # UART 가 없는 /dev/ttyS 노드는 열리기는 하지만 tcgetattr 에서 termios.error(EIO) 를 낸다.
+    # termios.error 는 OSError 가 아니어서 따로 잡지 않으면 런치 전체가 죽는다 (M: ttyS2~5)
     try:
         port_fd = _open_raw_115200(port_path)
-    except OSError:
+    except (OSError, termios.error):
         return None
     try:
         for _ in range(BOARD_REQUEST_ATTEMPTS):
@@ -110,7 +116,7 @@ def identify_device(port_path: str) -> Optional[str]:
         imu_reply = _exchange(port_fd, IMU_EULER_REQUEST, IMU_REPLY_TIMEOUT_SEC,
                               lambda reply: reply.endswith(b'\n') or reply.endswith(b'\r'))
         return 'imu' if is_imu_reply(imu_reply) else None
-    except OSError:
+    except (OSError, termios.error):
         return None
     finally:
         os.close(port_fd)
