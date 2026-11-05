@@ -29,3 +29,6 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    - `tetra_bringup_h.launch.py`: TETRA-H 대형 모델 (듀얼 LiDAR + Realsense)
    - `tetra_bringup_s.launch.py`: TETRA-S 3D 매핑 모델
 2. **Nav2 수명주기(Lifecycle)**: `nav2_lifecycle_manager` 노드가 AMCL, Controller, Planner의 상태를 `unconfigured` -> `inactive` -> `active` 순으로 관리합니다.
+3. **경로 지정 주행 Route Server**: `tetra_navigation2/launch/route_server_launch.py` 를 `navigation_launch.py` 가 포함한다 (설치돼 있을 때만).
+   빈 그래프는 거부되므로 `graphs/route_placeholder.geojson` 으로 뜨고, 실제 그래프는 관제 API 가 `set_route_graph` 로 읽힌다.
+   Nav2 본체와 다른 lifecycle manager(`lifecycle_manager_route`)라 Route Server 문제로 Nav2 기동이 멈추지 않는다. 파라미터: `params/route_server.yaml` (모든 모델 공통).

@@ -15,7 +15,7 @@ find_package(spatio_temporal_voxel_layer REQUIRED)
 ################################################################################
 # behavior_trees: EDU 전용 BT(후진 복구 제거본)를 $(find-pkg-share) 경로로 찾도록 설치한다
 install(
-  DIRECTORY behavior_trees launch maps params rviz
+  DIRECTORY behavior_trees graphs launch maps params rviz
   DESTINATION share/${PROJECT_NAME}
 )
 

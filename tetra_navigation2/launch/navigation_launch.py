@@ -17,8 +17,9 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, SetEnvironmentVariable
 from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LoadComposableNodes, SetParameter
 from launch_ros.actions import Node
@@ -339,5 +340,14 @@ def generate_launch_description():
     # Add the actions to launch all of the navigation nodes
     ld.add_action(load_nodes)
     ld.add_action(load_composable_nodes)
+
+    # 경로 지정 주행용 Route Server (자체 lifecycle manager). 설치 경로는 symlink 라 이 파일 수정은 바로 반영되지만
+    # 새 launch 파일은 colcon build 후에야 생기므로, 없으면 건너뛰어 Nav2 기동이 깨지지 않게 한다
+    route_server_launch = os.path.join(bringup_dir, 'launch', 'route_server_launch.py')
+    if os.path.exists(route_server_launch):
+        ld.add_action(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(route_server_launch),
+            launch_arguments={'use_sim_time': use_sim_time}.items(),
+        ))
 
     return ld

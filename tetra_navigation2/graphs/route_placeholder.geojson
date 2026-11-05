@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "name": "tetra_route_placeholder",
+  "description": "Route Server rejects an empty graph, so it starts with this unused far-away edge until the API loads the real one",
+  "features": [
+    {"type": "Feature", "properties": {"id": 65533, "frame": "map"}, "geometry": {"type": "Point", "coordinates": [-100000.0, -100000.0]}},
+    {"type": "Feature", "properties": {"id": 65534, "frame": "map"}, "geometry": {"type": "Point", "coordinates": [-100001.0, -100000.0]}},
+    {"type": "Feature", "properties": {"id": 65535, "startid": 65533, "endid": 65534}, "geometry": {"type": "MultiLineString", "coordinates": [[[-100000.0, -100000.0], [-100001.0, -100000.0]]]}}
+  ]
+}

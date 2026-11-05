@@ -1,0 +1,14 @@
+# 경로 지정 주행용 Route Server (모든 모델 공통, launch/route_server_launch.py)
+# graph_filepath 는 launch 가 자리표시 그래프로 채우고, 실제 그래프는 관제 API 가 set_route_graph 로 읽힌다.
+route_server:
+  ros__parameters:
+    base_frame: base_footprint
+    route_frame: map
+    # 경로 점 간격. RPP 가 따라가기에 충분히 촘촘하게
+    path_density: 0.05
+    max_planning_time: 2.0
+    # 직각 모서리를 반경 0.5 m 호로 이어 RPP 가 급히 꺾지 않게 한다 (시뮬레이션에서 모서리 이탈 약 0.23 m)
+    smooth_corners: true
+    smoothing_radius: 0.5
+    # API 는 항상 노드 ID 로 요청하므로(use_poses=false) costmap 기반 최근접 노드 탐색을 쓰지 않는다
+    enable_nn_search: false
