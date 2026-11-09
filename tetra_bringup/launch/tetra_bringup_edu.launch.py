@@ -30,7 +30,8 @@ def generate_launch_description():
             {
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "edu",
-                # EDU 메인보드는 구동보드가 ttyS2 에 붙는다 (코드 기본값 ttyS0 은 다른 모델 배선). 예전 tetra 노드도 ttyS2 를 고정으로 열었다
+                # 포트는 serial_port_actions 가 ttyS0~5 를 스캔해 구동보드를 찾아 넣는다.
+                # 못 찾으면 EDU 배선 기본값 ttyS2 로 돌아간다 (드라이버 코드 기본값 ttyS0 은 다른 모델 배선)
                 "port": LaunchConfiguration('wheel_port'),
                 "m_bEKF_option": True,  # default: False
             }
@@ -198,7 +199,8 @@ def generate_launch_description():
 
 		# realsense D435
 		# 카메라 이름은 기본값(camera1)을 둔다: 관제 기본 영상 토픽이 /camera1/color/image_raw 이고 URDF 의 camera1_link 에 TF 가 붙는다.
-		# depth 는 라이다(R270)가 못 보는 높이의 장애물을 보고 센서 TF 를 맞춰 보는 데 쓴다.
+		# 지금 EDU 에서 RealSense 는 AprilTag 도킹용 컬러 영상에만 쓴다. Nav2 costmap·collision_monitor 는 R270 의 /points2 만 본다.
+		# 포인트클라우드는 구독하는 곳이 없어 끈다 (라이다 도킹으로 바꾸면 RealSense 자체를 뺄 수 있다).
 		# 컬러·depth 모두 640x480@15 로 두어 드라이버 기본값(depth 30fps)보다 USB 대역폭·CPU 를 줄인다
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
@@ -207,7 +209,7 @@ def generate_launch_description():
 			'rgb_camera.color_profile': '640x480x15',
 			'enable_depth': 'true',
 			'depth_module.depth_profile': '640x480x15',
-			'pointcloud.enable': 'true',
+			'pointcloud.enable': 'false',
 		}.items(),
 		),
 
