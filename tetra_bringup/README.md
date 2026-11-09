@@ -38,7 +38,7 @@ Tetra Bringup 패키지는 Tetra 로봇의 초기화 및 설정을 담당합니�
 
 ### TETRA-M 센서 구성
 - 전방 SICK TIM 5xx: `sick_scan_xd`로 전방 2D LiDAR를 실행합니다.
-- 후방 Cyglidar D1: `cyglidar_d1_ros2`로 후방 2D LiDAR를 실행합니다.
+- 후방 Cyglidar D2: `cyglidar_d2_ros2`로 후방 2D LiDAR를 실행합니다.
 - USB 카메라: `usb_cam`으로 카메라 영상을 발행합니다.
 - AprilTag: `apriltag_ros`가 USB 카메라 영상에서 태그를 검출합니다.
 - 가상벽: 별도 `virtual_wall` 패키지는 실행하지 않습니다. 관제 백엔드가 `/Global_virtual_wall` 및 `/Local_virtual_wall` PointCloud2 토픽을 직접 발행합니다.

@@ -25,7 +25,6 @@
   <exec_depend>usb_cam</exec_depend>
   <exec_depend>apriltag_ros</exec_depend>
   <exec_depend>sick_scan_xd</exec_depend>
-  <exec_depend>cyglidar_d1_ros2</exec_depend>
   <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>cyglidar_d2_ros2</exec_depend>
   <exec_depend>laser_filters</exec_depend>
