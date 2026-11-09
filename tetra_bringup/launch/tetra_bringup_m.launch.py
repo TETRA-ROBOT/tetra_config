@@ -7,9 +7,11 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, IncludeLaunchDescription, DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.actions import Node
 
 # 같은 디렉터리의 공용 모듈: ttyS 포트를 스캔해 구동·전원보드와 IMU 위치를 찾는다
@@ -54,7 +56,8 @@ def generate_launch_description():
         parameters=[
             {"port": LaunchConfiguration('power_port')},
             {"m_bConveyor_option": False},
-            {"m_bUltrasonic_option": False}
+            # 예전 M 은 후방 Cyglidar 대신 초음파로 뒤를 본다 (use_ultrasonic:=true use_cyglidar:=false)
+            {"m_bUltrasonic_option": ParameterValue(LaunchConfiguration('use_ultrasonic'), value_type=bool)}
         ]
     )
     
@@ -131,7 +134,13 @@ def generate_launch_description():
     # create and return launch description object
     return LaunchDescription(
         [
-            # 드라이버 노드보다 먼저 와야 노드가 스캔한 포트를 받는다
+            # 구형 M은 초음파를, 신형 M은 Cyglidar를 사용한다.
+            DeclareLaunchArgument('use_cyglidar', default_value='false',
+                                  description='신형 M 후방 Cyglidar D2 실행'),
+            DeclareLaunchArgument('use_ultrasonic', default_value='true',
+                                  description='구형 M 후방 초음파 켜기·발행 (range_points_DL/RL/RR/DR)'),
+            DeclareLaunchArgument('use_realsense', default_value='true',
+                                  description='Realsense 카메라 실행'),
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
             ekf_localization_node,
@@ -151,7 +160,7 @@ def generate_launch_description():
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('usb_cam'), '/launch/camera.launch.py']),
 		),
-        
+
         # apriltag_ros
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
@@ -168,12 +177,14 @@ def generate_launch_description():
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('cyglidar_d2_ros2'), '/launch/cyglidar.launch.py']),
+			condition=IfCondition(LaunchConfiguration('use_cyglidar')),
 		),
-		
+
 		# realsense D455 
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']), # rs_multi_camera_launch.py
+			condition=IfCondition(LaunchConfiguration('use_realsense')),
 		),
 
         ]
