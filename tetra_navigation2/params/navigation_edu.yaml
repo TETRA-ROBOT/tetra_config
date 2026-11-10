@@ -104,8 +104,10 @@ local_costmap:
       footprint: "[[0.1675,0.215], [-0.318,0.215], [-0.318,-0.215], [0.1675,-0.215]]"
 
       # Active Costmap Layers
-      plugins: ["obstacle_layer",  "inflation_layer"]
-      
+      # 가상벽은 라이다와 다른 레이어(virtual_wall_layer)에 둔다. 같은 레이어에서 clearing 하던 때는 매 주기마다
+      # map 원점에서 벽 점(약 8만 개)마다 광선을 그어 CPU 를 썼다. 지운·바꾼 벽은 API 가 costmap 을 비워 없앤다
+      plugins: ["obstacle_layer", "virtual_wall_layer", "inflation_layer"]
+
       # Inflation Layer Settings
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -116,8 +118,8 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: points virtual_obstacle_source
-        
+        observation_sources: points
+
         # 2D LiDAR Source (/points2)
         points:
           topic: /points2
@@ -129,21 +131,27 @@ local_costmap:
           clearing: True
           marking: True
 
-        # Virtual Wall Source
+      # Virtual Wall Layer (marking 만, 라이다와 분리)
+      virtual_wall_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        # 로봇 아래 칸을 지우지 않는다: 위치가 틀어져 벽 안에 들어가면 그대로 보여야 출발 거부 이유가 맞다
+        footprint_clearing_enabled: False
+        observation_sources: virtual_obstacle_source
         virtual_obstacle_source:
           topic: /Local_virtual_wall
           data_type: PointCloud2
           max_obstacle_height: 2.0
-          clearing: True
+          clearing: False
           marking: True
           obstacle_max_range: 100.0
-          raytrace_max_range: 101.0
 
       always_send_full_costmap: True
 
 global_costmap:
   global_costmap:
     ros__parameters:
+          # 표시 거리는 점 구름 원점(map 원점)에서 잰다. 지도 끝의 벽까지 닿게 넉넉히 둔다
       # Frame & Update Rates
       global_frame: map
       robot_base_frame: base_footprint
@@ -160,7 +168,8 @@ global_costmap:
       always_send_full_costmap: True
 
       # Active Costmap Layers
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      # 가상벽 분리 이유는 local_costmap 주석 참고
+      plugins: ["static_layer", "obstacle_layer", "virtual_wall_layer", "inflation_layer"]
 
       # 1. Static Map Layer
       static_layer:
@@ -172,7 +181,7 @@ global_costmap:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
         # 소스 이름은 아래 정의(points)와 같아야 한다. 정의 없는 이름(points2)은 LaserScan 기본값으로 /points2 를 구독해 타입이 맞지 않아 전역 costmap 에 라이다 장애물이 빠졌다
-        observation_sources: virtual_obstacle_source points
+        observation_sources: points
         # 2D LiDAR Source (/poinst2)
         points:
           topic: /points2
@@ -184,15 +193,19 @@ global_costmap:
           clearing: True
           marking: True
 
-        # Global Virtual Wall Source
+      # 3. Virtual Wall Layer (marking 만, 라이다와 분리)
+      virtual_wall_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        footprint_clearing_enabled: False
+        observation_sources: virtual_obstacle_source
         virtual_obstacle_source:
           topic: /Global_virtual_wall
           data_type: PointCloud2
           max_obstacle_height: 2.0
-          clearing: True
+          clearing: False
           marking: True
           obstacle_max_range: 100.0
-          raytrace_max_range: 101.0
 
       # Inflation Layer
       inflation_layer:
