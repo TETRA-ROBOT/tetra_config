@@ -28,8 +28,13 @@ amcl:
     odom_frame_id: "odom"
     pf_err: 0.01
     pf_z: 0.99
-    recovery_alpha_fast: 0.5
-    recovery_alpha_slow: 0.0001
+    # 무작위 파티클 주입(위치를 잃었을 때 지도 전체에서 다시 찾기)을 끈다 (Nav2 기본값 0.0/0.0).
+    # likelihood_field_prob 은 빔 확률을 곱해 점수 폭이 매우 커서, 사람이 지나가는 정도로 점수가 잠깐 떨어져도
+    # 단기 평균(alpha_fast 0.5)이 장기 평균보다 훨씬 낮아져 대량으로 주입됐다. 실기(2026-11-10 10:10)에서
+    # 주행 중 위치가 몇 초 사이에 (-5.7,-2.1) → (-4.7,+2.4) → (-7.3,-3.9) 로 지도 곳곳을 뛰어 경로 생성이 실패했다.
+    # 위치를 정말 잃으면 웹의 위치 지정(/initialpose)으로 바로잡는다
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
     resample_interval: 1
     robot_model_type: "nav2_amcl::DifferentialMotionModel"
     save_pose_rate: 0.5
