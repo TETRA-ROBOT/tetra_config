@@ -372,12 +372,14 @@ collision_monitor:
 docking_server:
   ros__parameters:
     controller_frequency: 50.0
-    initial_perception_timeout: 5.0
+    # 태그 탐색(+-20도 왕복, 약 28초)이 끝날 만큼 기다린다
+    initial_perception_timeout: 35.0
     wait_charge_timeout: 5.0
     dock_approach_timeout: 30.0
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
-    max_retries: 3
+    # 재시도 때 Jazzy 는 항상 전진으로 staging 을 찾아가, 목표가 옆·뒤면 제자리에서 70~95도 돌았다 (좁은 도크 자리에서 위험)
+    max_retries: 0
     base_frame: "base_footprint"
     fixed_frame: "odom"
     # M 은 후방 카메라로 마커를 보며 뒤로 도킹한다 (웹 옵션 docking_front: 0 과 맞춘다).
@@ -413,7 +415,8 @@ docking_server:
     # 충전기 몸체에 걸려 매번 905(충돌)로 멈췄다 (2026-11-10 실기).
     tetra_charging_dock:
       plugin: 'tetra_docking::TetraChargingDock'
-      docking_threshold: 0.05
+      # 자세 기준 도착(도크 자세까지 이 거리 안)이 접점보다 먼저 오면 접점 없이 멈춰 충전 실패로 끝난다
+      docking_threshold: 0.01
       staging_x_offset: -0.7
       staging_yaw_offset: 3.14159
       use_battery_status: false
@@ -428,8 +431,9 @@ docking_server:
       external_detection_rotation_pitch: 1.57
       external_detection_rotation_roll: 0.0
       external_detection_rotation_yaw: 0.0
-      # 충전 접점에 닿았을 때 base_footprint 에서 태그까지 거리 (실측)
-      external_detection_translation_x: -0.92
+      # 접점에 닿았을 때 base_footprint→태그 0.711 m (실측 2026-11-10, 좌우 -3 mm, 법선 -1.4도).
+      # 도크 자세를 2 cm 깊게 두어 자세 기준 도착보다 접점이 먼저 닿게 한다
+      external_detection_translation_x: -0.69
       external_detection_translation_y: 0.0
       filter_coef: 0.1
 
@@ -454,6 +458,11 @@ docking_server:
       tag_staging_skip_yaw: 0.03
       # 작은 태그는 움직이는 동안 yaw 가 프레임마다 15 도씩 튀어, 멈춰서 평균한 staging yaw 를 접근 내내 쓴다
       lock_dock_yaw_to_staging: true
+      # map 은 AMCL 이 움직일 때마다 보정해 staging 이 태그 축에서 벗어났다. odom 기준으로 낸다
+      tag_staging_frame: "odom"
+      # staging 에 왔는데 태그가 시야 밖이면 제자리에서 +-20도를 0.05 rad/s 로 돌며 찾는다 (AMCL 방향 오차 대비)
+      tag_search_angle: 0.35
+      tag_search_speed: 0.05
       camera_info_topic: "/camera/camera_info"
       tag_size: 0.1
 
