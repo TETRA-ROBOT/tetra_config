@@ -138,7 +138,7 @@ def generate_launch_description():
 		# USB Camera
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
-			[get_package_share_directory('usb_cam'), '/launch/camera.launch.py']),
+			[get_package_share_directory('tetra_bringup'), '/launch/usb_camera.launch.py']),  # 로봇별 카메라 보정 파일
 		),
         
         # apriltag_ros

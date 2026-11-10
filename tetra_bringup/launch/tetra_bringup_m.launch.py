@@ -158,13 +158,16 @@ def generate_launch_description():
 		# USB Camera
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
-			[get_package_share_directory('usb_cam'), '/launch/camera.launch.py']),
+			[get_package_share_directory('tetra_bringup'), '/launch/usb_camera.launch.py']),  # 로봇별 카메라 보정 파일
 		),
 
         # apriltag_ros
+		# 후면 usb_cam 은 왜곡(k1 0.17)이 커서, 보정 전 영상 그대로 자세를 구하면 태그가 중앙을 벗어날수록
+		# yaw 가 휘어 후진 도킹 중 목표가 로봇 회전을 따라 돌았다 (2026-11-10 실기). 모서리를 보정해서 쓴다
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
+		launch_arguments={'undistort_corners': 'true'}.items(),
 		),
 			
 		# sick_tim_571
