@@ -50,7 +50,10 @@ controller_server:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.1
-      yaw_goal_tolerance: 0.0274533
+      # ±1.6°(0.0274533)였을 때 RPP 제자리 회전(rotate_to_heading_angular_vel, 목표 근처에서도 줄지 않음)이
+      # 제어 한 번에 그보다 더 돌아 허용 범위를 넘나들며 좌우로 맴돌았다 (실기 2026-11-10 13:38 도킹 staging 도착에 54초).
+      # ±2.9° 면 위치 도착에 충분하고, 도킹은 staging 뒤 도킹 컨트롤러가 태그 기준으로 다시 맞춘다
+      yaw_goal_tolerance: 0.05
 
     # Controller plugin (Regulated Pure Pursuit)
     FollowPath:
@@ -74,7 +77,8 @@ controller_server:
       # (allow_reversing 과 use_rotate_to_heading 은 동시에 true 일 수 없다)
       allow_reversing: false
       use_rotate_to_heading: true
-      rotate_to_heading_angular_vel: 0.785398
+      # 0.785398 에서 줄였다: 20 Hz 제어 한 번에 1.4° 만 돌아 위 yaw_goal_tolerance(±2.9°) 안에 멈출 수 있다
+      rotate_to_heading_angular_vel: 0.5
       rotate_to_heading_min_angle: 0.785398    # Rotate in place if heading error >= 45 degrees
 
       # Velocity Scaling and Safety Features
@@ -148,6 +152,7 @@ local_costmap:
           max_obstacle_height: 2.0
           clearing: False
           marking: True
+          # 표시 거리는 점 구름 원점(map 원점)에서 잰다. 지도 끝의 벽까지 닿게 넉넉히 둔다
           obstacle_max_range: 100.0
 
       always_send_full_costmap: True
@@ -155,7 +160,6 @@ local_costmap:
 global_costmap:
   global_costmap:
     ros__parameters:
-          # 표시 거리는 점 구름 원점(map 원점)에서 잰다. 지도 끝의 벽까지 닿게 넉넉히 둔다
       # Frame & Update Rates
       global_frame: map
       robot_base_frame: base_footprint
@@ -435,7 +439,9 @@ docking_server:
       tag_tf_as_detection: true
       marker_family: "tag36h11:"
       camera_frame: "camera1_color_optical_frame"
-      external_detection_timeout: 1.0
+      # 1.0 에서 늘렸다: 컬러 영상이 실측 9 fps 라 접근 중 몇 프레임만 놓쳐도 1초를 넘겨, 태그가 화면 안에 있는데도
+      # 도크 0.5 m 앞에서 'Dock tag lost' 로 실패했다 (실기 2026-11-10 3건). 마지막 검출 자세는 odom 기준이라 2초는 버틴다
+      external_detection_timeout: 2.0
       # apriltag_ros 태그 프레임은 z 가 카메라 쪽을 향한다. Y 축 +90도로 도크 x 축을 태그 안쪽(-z)으로 돌린다.
       # (nova_carter 기본값 -1.57/-1.57 은 z 가 태그 안쪽인 Isaac 규약이라 도크가 180도 뒤집힌다)
       external_detection_rotation_pitch: 1.57

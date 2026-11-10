@@ -190,7 +190,9 @@ def generate_launch_description():
 			executable='apriltag_node',
 			name='apriltag_node',
 			output='screen',
-			parameters=[{'family': '36h11', 'size': 0.1}],
+			# decimate 기본값 2.0 은 640x480 을 320x240 으로 줄여 찾는다. staging 거리(약 1 m)에서 태그가 20~30 px 로 작아져
+			# 'only 0~2 usable detections', 'detections are unstable' 로 도킹이 실패했다. 원본 해상도로 찾고 스레드를 하나 더 준다
+			parameters=[{'family': '36h11', 'size': 0.1, 'detector.decimate': 1.0, 'detector.threads': 2}],
 			remappings=[
 				('/image_rect', '/camera1/color/image_raw'),
 				('/camera_info', '/camera1/color/camera_info'),
