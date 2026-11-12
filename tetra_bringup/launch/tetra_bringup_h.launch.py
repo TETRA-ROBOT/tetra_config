@@ -86,6 +86,16 @@ def generate_launch_description():
     
     # tetra_URDF
     use_sim_time = DeclareLaunchArgument('use_sim_time', default_value="false")
+    # 바퀴·캐스터는 돌아가는 관절(continuous)이라 관절 값이 없으면 robot_state_publisher 가 그 링크의 TF 를 내지 못한다.
+    # /joint_states 를 내는 노드가 없어 RViz RobotModel 이 "No transform from [base_l_wheel_link] ..." 오류를 냈다.
+    # 휠 드라이버는 바퀴 각도를 내지 않으므로 0 으로 고정해 발행한다 (모델을 그리기 위한 값이고 주행 계산에는 쓰지 않는다)
+    jsp_node = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        output='screen',
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+    )
     rsp_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -177,6 +187,7 @@ def generate_launch_description():
             joy_node,
             use_sim_time,
             rsp_node,
+            jsp_node,
             # 웹 관제가 로봇 위치로 쓰는 /footprint 를 TF(map/odom → base_footprint)에서 발행
             Node(package='tetra_bringup', executable='robot_pose_publisher.py', name='robot_pose_publisher', output='screen'),
             rosbridge_server,
