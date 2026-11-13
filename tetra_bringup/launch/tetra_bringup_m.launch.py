@@ -109,6 +109,8 @@ def generate_launch_description():
                         'urdf',
                         'tetra.xacro',
                     ]),
+                    # M 후면 초음파 프레임 (tetra_description/urdf/tetra.xacro)
+                    ' m_rear_sonar:=true',
                 ]),
         }]
     )

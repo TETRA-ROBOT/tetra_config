@@ -106,6 +106,8 @@ def generate_launch_description():
                         'urdf',
                         'tetra.xacro',
                     ]),
+                    # M 후면 초음파 프레임 (tetra_description/urdf/tetra.xacro)
+                    ' m_rear_sonar:=true',
                 ]),
         }]
     )
@@ -153,9 +155,11 @@ def generate_launch_description():
 		),
         
         # apriltag_ros
+		# M 후면 usb_cam 은 왜곡이 커서 모서리를 보정해서 쓴다 (tetra_bringup_m.launch.py 와 같은 이유, 2026-11-10 실기)
 		IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
 			[get_package_share_directory('apriltag_ros'), '/launch/apriltag_detection.launch.py']),
+		launch_arguments={'undistort_corners': 'true'}.items(),
 		),
 			
 		## sick_tim_571
