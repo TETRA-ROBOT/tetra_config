@@ -151,8 +151,8 @@ def generate_launch_description():
                                   description='신형 M 후방 Cyglidar D2 실행'),
             DeclareLaunchArgument('use_ultrasonic', default_value='true',
                                   description='구형 M 후방 초음파 켜기·발행 (range_points_DL/RL/RR/DR)'),
-            DeclareLaunchArgument('use_realsense', default_value='true',
-                                  description='Realsense 카메라 실행'),
+            DeclareLaunchArgument('use_realsense', default_value='false',
+                                  description='Realsense 카메라 실행 (M 기본값: 비활성)'),
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
             ekf_localization_node,
@@ -191,15 +191,15 @@ def generate_launch_description():
 		
 		# cygbot 2D lidar
 		IncludeLaunchDescription(
-		PythonLaunchDescriptionSource(
-			[get_package_share_directory('cyglidar_d2_ros2'), '/launch/cyglidar.launch.py']),
+		PythonLaunchDescriptionSource(PathJoinSubstitution([
+			FindPackageShare('cyglidar_d2_ros2'), 'launch', 'cyglidar.launch.py'])),
 			condition=IfCondition(LaunchConfiguration('use_cyglidar')),
 		),
 
 		# realsense D455 
 		IncludeLaunchDescription(
-		PythonLaunchDescriptionSource(
-			[get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']), # rs_multi_camera_launch.py
+		PythonLaunchDescriptionSource(PathJoinSubstitution([
+			FindPackageShare('realsense2_camera'), 'launch', 'rs_launch.py'])), # rs_multi_camera_launch.py
 			condition=IfCondition(LaunchConfiguration('use_realsense')),
 		),
 
