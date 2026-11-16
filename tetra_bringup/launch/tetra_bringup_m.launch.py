@@ -109,8 +109,9 @@ def generate_launch_description():
                         'urdf',
                         'tetra.xacro',
                     ]),
-                    # M 후면 초음파 프레임 (tetra_description/urdf/tetra.xacro)
-                    ' m_rear_sonar:=true',
+                    # M 후면 초음파 프레임 (tetra_description/urdf/tetra.xacro). 초음파를 쓰는 구형 M 만 켠다 (Cyglidar 신형은 끔)
+                    ' m_rear_sonar:=',
+                    LaunchConfiguration('use_ultrasonic'),
                 ]),
         }]
     )
