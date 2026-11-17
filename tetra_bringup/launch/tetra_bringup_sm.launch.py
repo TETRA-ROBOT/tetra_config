@@ -2,19 +2,27 @@
 
 import os
 import sys
-import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution, Command, LaunchConfiguration
-from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-# 같은 디렉터리의 공용 모듈: ttyS 포트를 스캔해 구동·전원보드와 IMU 위치를 찾는다
+# 같은 디렉터리의 공용 모듈: 직렬 포트 스캔(tetra_serial_ports), 모델 공통 노드(bringup_common)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tetra_serial_ports import serial_port_actions  # noqa: E402
+from bringup_common import (  # noqa: E402
+    ekf_node,
+    joint_state_publisher_node,
+    joystick_node,
+    realsense_apriltag_node,
+    robot_pose_publisher_node,
+    robot_state_publisher_node,
+    rosbridge_nodes,
+    use_sim_time_argument,
+)
 
 
 # this is the function launch  system will look for
@@ -36,15 +44,7 @@ def generate_launch_description():
     )
     
     # EKF Localization
-    ekf_localization_node= Node(
-            package='robot_localization',
-            executable='ekf_node',
-            name='ekf_filter_node',
-            output='screen',
-            parameters=[os.path.join(get_package_share_directory("tetra_bringup"), 'params', 'ekf_sm.yaml')],
-            arguments=['--ros-args', '--log-level', 'error']
-            #remappings=[('/odometry/filtered', '/odom')],
-    )
+    ekf_localization_node = ekf_node('ekf_sm.yaml')
     
     # tetra_power_driver Board
     tetra_power_driver_node = Node(
@@ -70,63 +70,16 @@ def generate_launch_description():
     )
     
     # Joystick
-    joy_node = Node(
-        package='joy', 
-        executable='joy_node',
-        output='screen',
-        parameters=[
-            {"deadzone": 0.05}
-        ]
-    )
+    joy_node = joystick_node()
     
     # tetra_URDF
-    use_sim_time = DeclareLaunchArgument('use_sim_time', default_value="false")
-    # 바퀴·캐스터는 돌아가는 관절(continuous)이라 관절 값이 없으면 robot_state_publisher 가 그 링크의 TF 를 내지 못한다.
-    # /joint_states 를 내는 노드가 없어 RViz RobotModel 이 "No transform from [base_l_wheel_link] ..." 오류를 냈다.
-    # 휠 드라이버는 바퀴 각도를 내지 않으므로 0 으로 고정해 발행한다 (모델을 그리기 위한 값이고 주행 계산에는 쓰지 않는다)
-    jsp_node = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen',
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
-    )
-    rsp_node = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'robot_description':
-                Command([
-                    'xacro ',
-                    PathJoinSubstitution([
-                        FindPackageShare('tetra_description'),
-                        'urdf',
-                        'tetra_sm',
-                        'tetra.xacro',
-                    ]),
-                ]),
-        }]
-    )
+    use_sim_time = use_sim_time_argument()
+    jsp_node = joint_state_publisher_node()
+    rsp_node = robot_state_publisher_node(xacro_folder='tetra_sm')
     
-    # rosbridge_server 
-    rosbridge_server = Node(
-        package='rosbridge_server', 
-        executable='rosbridge_websocket',
-        output='screen',
-        parameters=[
-            {"port": 9090}
-        ]
-    )
+    # rosbridge_server + rosapi
+    rosbridge_server, rosapi_node = rosbridge_nodes()
 
-    # rosapi_node 
-    rosapi_node = Node(
-        package='rosapi', 
-        executable='rosapi_node',
-        output='screen',
-    )
     
     # Kanavi R270
     kanavi_lidar_node = Node(
@@ -205,7 +158,7 @@ def generate_launch_description():
             rsp_node,
             jsp_node,
             # 웹 관제가 로봇 위치로 쓰는 /footprint 를 TF(map/odom → base_footprint)에서 발행
-            Node(package='tetra_bringup', executable='robot_pose_publisher.py', name='robot_pose_publisher', output='screen'),
+            robot_pose_publisher_node(),
             rosbridge_server,
             rosapi_node,
             kanavi_lidar_node,
@@ -214,17 +167,7 @@ def generate_launch_description():
 
             # 충전 도킹은 전방 RealSense 컬러 영상의 AprilTag(36h11, 0.1 m)로 한다 (navigation_sm.yaml docking_server).
             # 공용 apriltag_detection.launch.py 는 /camera/image_raw 를 구독해 RealSense 영상을 받지 못하므로 EDU 와 같이 직접 띄운다
-            Node(
-                package='apriltag_ros',
-                executable='apriltag_node',
-                name='apriltag_node',
-                output='screen',
-                parameters=[{'family': '36h11', 'size': 0.1}],
-                remappings=[
-                    ('/image_rect', '/camera1/color/image_raw'),
-                    ('/camera_info', '/camera1/color/camera_info'),
-                ],
-            ),
+            realsense_apriltag_node(),
             # 카메라 이름 기본값(camera1)이어야 URDF camera1_link 아래로 컬러 광학 프레임 TF 가 붙는다.
             # 드라이버가 camera1_link -> camera1_color_frame 으로 RGB 센서의 옆 오프셋을 낸다
             IncludeLaunchDescription(
