@@ -37,3 +37,7 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
 3. **경로 지정 주행 Route Server**: `tetra_navigation2/launch/route_server_launch.py` 를 `navigation_launch.py` 가 포함한다 (설치돼 있을 때만).
    빈 그래프는 거부되므로 `graphs/route_placeholder.geojson` 으로 뜨고, 실제 그래프는 관제 API 가 `set_route_graph` 로 읽힌다.
    Nav2 본체와 다른 lifecycle manager(`lifecycle_manager_route`)라 Route Server 문제로 Nav2 기동이 멈추지 않는다. 파라미터: `params/route_server.yaml` (모든 모델 공통).
+4. **구간 비용 필터(PENALTY 구간)**: 실기 `params/navigation_{m,h,mh,s,sm,edu}.yaml` 의 global_costmap 에 `filters: ["zone_keepout_filter"]`(nav2_costmap_2d::KeepoutFilter,
+   `filter_info_topic: /costmap_filter_info`)가 있다. 마스크(`/zone_filter_mask`)와 필터 정보는 관제 API 가 transient_local 로 보낸다 (TetraSingleManagement `lib/robot/zones/zone-filter-publisher.ts`).
+   마스크 값(1~90%)이 비용이 되어 전역 경로가 그 구간을 되도록 피한다. 구간이 없으면 값이 모두 0 이라 동작이 예전과 같다.
+   local_costmap 에는 넣지 않았다 (제어기까지 피하게 하면 좁은 곳에서 멈출 수 있다). 시뮬레이션 `tetra_lab/robot_gazebo_sim/params/navigation_sim.yaml` 에는 아직 없다.
