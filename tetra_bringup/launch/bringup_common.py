@@ -122,6 +122,7 @@ def ekf_node(params_file_name: str) -> Node:
         output='screen',
         parameters=[os.path.join(get_package_share_directory('tetra_bringup'), 'params', params_file_name)],
         arguments=['--ros-args', '--log-level', 'error'],
+        # 예전 launch 파일마다 주석으로 남아 있던 줄: remappings=[('/odometry/filtered', '/odom')]
     )
 
 

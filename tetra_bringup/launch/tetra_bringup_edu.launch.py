@@ -144,6 +144,8 @@ def generate_launch_description():
         # apriltag_ros
 		# 공용 apriltag_detection.launch.py 는 /camera/image_raw 를 구독해 EDU 의 RealSense 컬러 영상을 받지 못한다.
 		# 예전 EDU 와 같이 컬러 영상(36h11, 0.1 m 태그)을 보도록 여기서 직접 띄운다
+		# decimate 기본값 2.0 은 640x480 을 320x240 으로 줄여 찾는다. staging 거리(약 1 m)에서 태그가 20~30 px 로 작아져
+		# 'only 0~2 usable detections', 'detections are unstable' 로 도킹이 실패했다. 원본 해상도로 찾고 스레드를 하나 더 준다
 		realsense_apriltag_node({'detector.decimate': 1.0, 'detector.threads': 2}),
 
 		# realsense D435
