@@ -19,6 +19,12 @@
 ### config/
 - **`tetra_lds_2d.lua`**: Cartographer의 2D SLAM 설정 파일로, 라이다 데이터 처리 및 지도 생성에 필요한 매개변수를 정의합니다.
 - **`tetra_lds_2d(old).lua`**: 이전 버전의 Cartographer 설정 파일로, 참고용으로 제공됩니다.
+- **`tetra_edu_2d.lua`**: TETRA-EDU 웹 관제 매핑용 (Kanavi R270 `/points2`).
+
+### 웹 관제 매핑 (`launch/cartographer_mapping.launch.py`)
+웹 관제는 관리자 옵션 `slam_engine` 이 `cartographer` 일 때 이 런치로 매핑합니다 (EDU 기본값). EDU 는 `tetra_edu_2d.lua`,
+나머지 모델은 `/scan` 하나를 받는 `tetra_lds_2d.lua` 를 씁니다. 오도메트리는 EKF 출력(`/odometry/filtered`)으로 바꿔 받습니다.
+SLAM Toolbox 와 지도를 비교하려면 루트의 `scripts/slam_compare.sh` 를 쓰세요.
 
 ### launch/
 - **`cartographer.launch.py`**: Cartographer 노드를 실행하는 launch 파일로, SLAM을 시작합니다.
