@@ -15,11 +15,17 @@ from launch_ros.actions import Node
 
 CAMERA_NAME = 'camera'
 CALIBRATION_FILE_NAME = 'rear_camera.yaml'
+# 로봇별 저장소. 실행 스크립트(start_real_robot.sh)와 관제 API 가 환경 변수 PERSISTENT_DIR 로 정한다.
+# 변수가 없을 때만 이 기본값을 쓴다 (카메라 캘리브레이션 노드 tetra_camera_calibration/camera_info_io.py 와 같은 규칙)
+DEFAULT_PERSISTENT_DIR = '/home/tetra/tetra_integration/persistent'
+
+
+def persistent_dir() -> str:
+    return os.environ.get('PERSISTENT_DIR') or DEFAULT_PERSISTENT_DIR
 
 
 def robot_calibration_url(default_file: str) -> str:
-    persistent_dir = os.environ.get('PERSISTENT_DIR', '/home/tetra/tetra_integration/persistent')
-    calibration_file = os.path.join(persistent_dir, 'camera_info', CALIBRATION_FILE_NAME)
+    calibration_file = os.path.join(persistent_dir(), 'camera_info', CALIBRATION_FILE_NAME)
     try:
         if not os.path.isfile(calibration_file):
             os.makedirs(os.path.dirname(calibration_file), exist_ok=True)
