@@ -33,6 +33,10 @@ def generate_launch_description():
                 "robot_model": "m",
                 "port": LaunchConfiguration('wheel_port'),
                 "m_bEKF_option": True,  # default: False
+                # 구형 M 은 뒤쪽 서보 버튼이 없어 비상정지 버튼으로 서보를 푼다 (손으로 밀 수 있게)
+                "emg_releases_servo": ParameterValue(LaunchConfiguration('emg_releases_servo'), value_type=bool),
+                # ekf_m.yaml 이 바퀴 속도와 IMU 를 공분산으로 섞어 쓴다
+                "publish_odom_covariance": True,
             }
         ]
     )
@@ -152,6 +156,9 @@ def generate_launch_description():
                                   description='신형 M 후방 Cyglidar D2 실행'),
             DeclareLaunchArgument('use_ultrasonic', default_value='true',
                                   description='구형 M 후방 초음파 켜기·발행 (range_points_DL/RL/RR/DR)'),
+            # 기본값은 구형 M(초음파 사용)일 때만 켠다. 신형 M 은 뒤쪽 서보 버튼이 있어 끈다
+            DeclareLaunchArgument('emg_releases_servo', default_value=LaunchConfiguration('use_ultrasonic'),
+                                  description='비상정지 버튼을 누르면 서보를 풀기 (구형 M)'),
             DeclareLaunchArgument('use_realsense', default_value='false',
                                   description='Realsense 카메라 실행 (M 기본값: 비활성)'),
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
