@@ -1,4 +1,13 @@
 ### ekf config file ###
+# 바퀴 오도메트리와 IMU 중 하나가 끊겨도 버티도록 둘 다 "속도"로 넣는다.
+#  - 바퀴: 직진 속도 vx, 옆 속도 vy(=0), 회전 속도. 휠 드라이버가 공분산을 싣는다 (publish_odom_covariance)
+#  - IMU: 회전 속도만
+#  - 방향은 바퀴가 잡는다 (주행 중 회전 분산 1e-6 < IMU 1e-4). 실측(2026-11-17 자동 탐사 5분)에서 SLAM 대비 RMS 오차가
+#    바퀴 우선 3.5°, IMU 우선 38° 였다. iAHRS 자이로가 주행 진동으로 0.2~0.4°/s 흐르고 반시계 회전을 2.5% 적게 잰다.
+#    측정 방법: tetra_integration/scripts/slam_compare.sh record → report
+#  - 바퀴가 끊기면(드라이버가 발행을 멈춘다) IMU 로, IMU 가 끊기면 바퀴로 이어 간다
+#  - 바퀴가 서 있으면 회전 분산을 더 작게 받아 자이로 영점 오차로 방향이 흐르지 않는다
+# 예전 설정은 바퀴의 절대 위치·방향(공분산 0)을 넣었고, IMU 가속도(ax)는 바퀴가 끊기면 위치를 날려 보냈다.
 ekf_filter_node:
     ros__parameters:
         frequency: 50.0
@@ -13,22 +22,36 @@ ekf_filter_node:
         world_frame: odom           # Defaults to the value of odom_frame if unspecified
 
         odom0: odom
-        odom0_config: [true,  true,  false,
-                       false, false, true,
-                       true, true, false, 
+        odom0_config: [false, false, false,
                        false, false, false,
+                       true,  true,  false,
+                       false, false, true,
                        false, false, false]
-        odom0_differential: false #false
-
+        odom0_differential: false
 
         imu0: imu/data
         imu0_config: [false, false, false,
-                      false, false, false, 
+                      false, false, false,
                       false, false, false,
                       false, false, true,
-                      true,  false, false]
-        imu0_differential: false # false
-        imu0_linear_acceleration_rejection_threshold: 0.55 # 0.8
-        imu0_remove_gravitational_acceleration: true
+                      false, false, false]
+        imu0_differential: false
 
-
+        # robot_localization 기본값에서 회전 속도(12번째)만 0.02 → 0.002 로 낮췄다.
+        # 기본값(0.02)으로 같은 실측 주행을 다시 돌리면 RMS 오차가 3.5° → 19° 로 나빠졌다 (IMU 의 흐름이 더 많이 들어간다).
+        # 더 낮추면(0.0005) IMU 가 끊겼을 때 바퀴 회전 속도를 따라가는 것이 늦어진다 (가상 데이터 시험)
+        process_noise_covariance: [0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.06, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.03, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.03, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.06, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.025, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.025, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.04, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.002, 0.0, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0,
+                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.015]
