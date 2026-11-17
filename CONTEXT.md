@@ -28,6 +28,11 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    - `tetra_bringup_m.launch.py`: 기본 TETRA-M 모델 (2D LiDAR)
    - `tetra_bringup_h.launch.py`: TETRA-H 대형 모델 (듀얼 LiDAR + Realsense)
    - `tetra_bringup_s.launch.py`: TETRA-S 3D 매핑 모델
+   - 모델과 상관없이 같은 노드(URDF 발행, joy, rosbridge·rosapi, 위치 발행, EKF, 후면 usb_cam + apriltag)는
+     `tetra_bringup/launch/bringup_common.py` 의 함수로 만든다. 모델별 launch 파일에는 차이만 남긴다
+     (센서, 직렬 포트 기본값, xacro 폴더·인자, EKF 파일, rosbridge 메시지 크기, 태그 모서리 왜곡 보정 여부).
+     공통 블록을 launch 파일에 다시 복사하지 않는다: 한 곳만 고치고 나머지를 빠뜨린 적이 있다 (apriltag undistort_corners).
+     launch 폴더의 모듈은 `tetra_serial_ports.py` 처럼 `sys.path` 에 그 폴더를 넣고 import 한다.
 2. **Nav2 수명주기(Lifecycle)**: `nav2_lifecycle_manager` 노드가 AMCL, Controller, Planner의 상태를 `unconfigured` -> `inactive` -> `active` 순으로 관리합니다.
 3. **경로 지정 주행 Route Server**: `tetra_navigation2/launch/route_server_launch.py` 를 `navigation_launch.py` 가 포함한다 (설치돼 있을 때만).
    빈 그래프는 거부되므로 `graphs/route_placeholder.geojson` 으로 뜨고, 실제 그래프는 관제 API 가 `set_route_graph` 로 읽힌다.
