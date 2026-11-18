@@ -357,17 +357,105 @@ collision_monitor:
         linear_max: 0.0
         theta_min: -0.1
         theta_max: 0.1
-    observation_sources: ["scan", "scan_b"]
-    scan:
+    # H 브링업은 /scan·/scan_b 를 내지 않는다 (두 SICK 는 /scan_front·/scan_rear, 합친 결과는 /scan_merge).
+    # 없는 토픽을 소스로 두면 "invalid source" 로 항상 정지 명령을 내 Nav2 가 움직이지 못한다 (MH 와 같은 문제)
+    observation_sources: ["scan_merge"]
+    scan_merge:
       type: "scan"
-      topic: "scan"
-      min_height: 0.15
-      max_height: 2.0
-      enabled: True
-    scan2:
-      type: "scan"
-      topic: "scan_b"
+      topic: "/scan_merge"
       min_height: 0.15
       max_height: 2.0
       enabled: True
 
+
+# 주행 런치(navigation_launch.py)는 모델과 관계없이 docking_server 를 띄운다. 이 블록이 없으면 configure 가
+# "Charging dock plugins not given!" 으로 실패하고, lifecycle_manager_navigation 이 주행 노드 전체의 활성화를 멈춘다.
+# MH 설정(전방 RealSense 태그 도킹, 실기 검증됨)을 바탕으로 했다. H 실기에서 아직 검증하지 않은 값은 "H 미검증"으로 표시했다
+docking_server:
+  ros__parameters:
+    controller_frequency: 50.0
+    initial_perception_timeout: 5.0
+    wait_charge_timeout: 5.0
+    dock_approach_timeout: 30.0
+    undock_linear_tolerance: 0.05
+    undock_angular_tolerance: 0.1
+    # 접근 중 태그를 끝내 못 찾으면 staging 으로 물러나 한 번 더 찾는다
+    max_retries: 1
+
+    base_frame: "base_link"
+    fixed_frame: "odom"
+    dock_prestaging_tolerance: 0.15
+    dock_backwards: false
+
+    # API 는 충전 도킹·언도킹을 tetra_charging_dock 으로 요청한다 (도킹 인스턴스는 API 가 지도의 도킹 위치로 reload_database 한다)
+    dock_plugins: ['tetra_charging_dock']
+
+    tetra_charging_dock:
+      plugin: 'tetra_docking::TetraChargingDock'
+      # 도크 자세 도착 판정 폭. 넓으면 충전기에 닿기 전에 "도착"으로 멈춰 접점이 안 붙는다 (MH 와 같음)
+      docking_threshold: 0.005
+      docked_by_depth: true
+      staging_x_offset: -0.4
+      staging_yaw_offset: 0.0
+      use_battery_status: false
+      use_stall_detection: false
+
+      # 전방 RealSense D455(camera1) 컬러 영상의 36h11, 0.1 m 태그 (tetra_bringup_h.launch.py realsense_apriltag_node)
+      use_external_detection_pose: true
+      tag_tf_as_detection: true
+      marker_family: "tag36h11:"
+      camera_frame: "camera1_color_optical_frame"
+      external_detection_timeout: 1.0
+      # apriltag_ros 태그 프레임은 z 가 카메라 쪽을 향한다. Y 축 +90도로 도크 x 축을 태그 안쪽(-z)으로 돌린다 (MH·EDU 와 같음)
+      external_detection_rotation_pitch: 1.57
+      external_detection_rotation_roll: 0.0
+      external_detection_rotation_yaw: 0.0
+      # 태그면 -> 도킹을 마친 base_link 위치. H 미검증: MH 실측(0.645 m, 차체 앞면 0.40 m)에 H 차체 앞면(0.434 m, footprint)
+      # 차이를 더한 추정값이다. 손으로 충전기에 붙인 자세에서 base_link-태그 거리를 재서 맞춘다 (미세 조정은 관리자 설정의 도킹 영점)
+      external_detection_translation_x: -0.68
+      external_detection_translation_y: 0.0
+      filter_coef: 0.1
+
+      # tetra_power_driver 의 docking_status 가 이 값 이상이면 접점으로 본다 (모든 모델 같음)
+      docking_status_topic: "docking_status"
+      contact_status_val: 2
+      charge_requires_contact: true
+      blind_approach_distance: 0.25
+      blind_approach_timeout: 8.0
+      lost_tag_reacquire_distance: 1.0
+      lost_tag_reacquire_time: 4.0
+      tag_search_angle: 0.6
+      tag_search_speed: 0.1
+      # bumper_data 비트는 tetra_wheel_driver 기준 0x01 앞 범퍼, 0x08 뒤 범퍼 (MH 와 같은 드라이버). H 미검증
+      bumper_topic: "bumper_data"
+      bumper_mask: 1
+      bumper_grace: 1.5
+      undock_bumper_mask: 8
+      heading_priority_near: 0.15
+      heading_priority_far: 0.30
+
+      tag_staging: true
+      tag_staging_distance: 0.75
+      tag_staging_distance_min: 0.45
+      tag_staging_distance_max: 0.95
+      camera_info_topic: "/camera1/color/camera_info"
+      tag_size: 0.1
+
+    controller:
+      # 관제가 도킹 목표마다 관리자 설정(도킹 속도·감속 시작 거리)으로 v_linear_max·v_linear_min·slowdown_radius 를 덮어쓴다
+      # (TetraSingleManagement lib/robot/services/dock-speed.ts). 여기 값은 관제 없이 도킹하거나 재시작 뒤 첫 언도킹에 쓴다
+      k_phi: 5.0
+      k_delta: 3.0
+      v_linear_min: 0.0385
+      v_linear_max: 0.10
+      v_angular_max: 0.15
+      slowdown_radius: 0.65
+
+      use_collision_detection: true
+      costmap_topic: "local_costmap/costmap_raw"
+      footprint_topic: "local_costmap/published_footprint"
+      transform_tolerance: 0.1
+      projection_time: 1.0
+      simulation_time_step: 0.1
+      # 충전기 본체가 장애물로 잡히므로 도크 자세 0.45 m 안에서는 충돌 검사에서 뺀다 (MH 와 같음)
+      dock_collision_threshold: 0.45

@@ -17,10 +17,10 @@ from bringup_common import (  # noqa: E402
     ekf_node,
     joint_state_publisher_node,
     joystick_node,
+    realsense_apriltag_node,
     robot_pose_publisher_node,
     robot_state_publisher_node,
     rosbridge_nodes,
-    usb_camera_apriltag_include,
     use_sim_time_argument,
 )
 
@@ -162,7 +162,8 @@ def generate_launch_description():
                 [get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']),
             ),
             
-            # apriltag_ros
-            usb_camera_apriltag_include(),
+            # 충전 도킹 태그는 전방 RealSense 컬러 영상에서 찾는다 (navigation_h.yaml docking_server).
+            # H 에는 usb_cam 이 없어 예전 usb_camera_apriltag_include()는 발행자 없는 /camera/image_raw 만 구독했다
+            realsense_apriltag_node(),
         ]
     )
