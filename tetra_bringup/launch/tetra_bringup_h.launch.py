@@ -57,7 +57,9 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"port": LaunchConfiguration('power_port')},
-            {"m_bConveyor_option": False},
+            # H 리프트의 적재 센서(비었음·걸쳐 있음·다 실림)는 전원 보드의 컨베이어 센서(CP)로 읽는다 (예전 tetra_h_interface 와 같음).
+            # 꺼 두면 /conveyor_sensor 가 나오지 않아 관제의 싣기·내리기와 태스크 LOAD·UNLOAD 가 적재 상태를 모른다
+            {"m_bConveyor_option": True},
             {"m_bUltrasonic_option": False}
         ]
     )

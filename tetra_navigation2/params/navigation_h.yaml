@@ -410,9 +410,9 @@ docking_server:
       external_detection_rotation_pitch: 1.57
       external_detection_rotation_roll: 0.0
       external_detection_rotation_yaw: 0.0
-      # 태그면 -> 도킹을 마친 base_link 위치. H 미검증: MH 실측(0.645 m, 차체 앞면 0.40 m)에 H 차체 앞면(0.434 m, footprint)
-      # 차이를 더한 추정값이다. 손으로 충전기에 붙인 자세에서 base_link-태그 거리를 재서 맞춘다 (미세 조정은 관리자 설정의 도킹 영점)
-      external_detection_translation_x: -0.68
+      # 태그면 -> 도킹을 마친 base_link 위치. 실측(2026-11-18): 충전 중 base_link-태그 0.725 m, 도킹 시험에서 접점이 0.717 m 에서 붙었다
+      # (추정값 0.68 은 도크 자세가 충전기 안쪽 4 cm 라 접점이 먼저 붙어 끝났다). 미세 조정은 관리자 설정의 도킹 영점
+      external_detection_translation_x: -0.72
       external_detection_translation_y: 0.0
       filter_coef: 0.1
 
