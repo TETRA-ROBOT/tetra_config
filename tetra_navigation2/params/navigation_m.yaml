@@ -117,7 +117,7 @@ local_costmap:
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
         sonar_dl_source:
-          topic: /range_points_DL
+          topic: /range_points_dl
           data_type: PointCloud2
           max_obstacle_height: 2.0
           clearing: True
@@ -125,7 +125,7 @@ local_costmap:
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
         sonar_rl_source:
-          topic: /range_points_RL
+          topic: /range_points_rl
           data_type: PointCloud2
           max_obstacle_height: 2.0
           clearing: True
@@ -133,7 +133,7 @@ local_costmap:
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
         sonar_rr_source:
-          topic: /range_points_RR
+          topic: /range_points_rr
           data_type: PointCloud2
           max_obstacle_height: 2.0
           clearing: True
@@ -141,7 +141,7 @@ local_costmap:
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
         sonar_dr_source:
-          topic: /range_points_DR
+          topic: /range_points_dr
           data_type: PointCloud2
           max_obstacle_height: 2.0
           clearing: True
@@ -485,6 +485,7 @@ docking_server:
       use_external_detection_pose: true
       marker_family: "tag36h11:"
       camera_frame: "camera"
+      # 보드 CN 코드(conveyor_auto_move_cmd): 1 올림, 0 내림. H 리프트는 2 가 최대 높이
       lift_action_mode: 1
       filter_coef: 0.1
 

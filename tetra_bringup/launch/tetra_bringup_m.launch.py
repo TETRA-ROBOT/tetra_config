@@ -41,7 +41,7 @@ def generate_launch_description():
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "m",
                 "port": LaunchConfiguration('wheel_port'),
-                "m_bEKF_option": True,  # default: False
+                "ekf_option": True,  # default: False
                 # 구형 M 은 뒤쪽 서보 버튼이 없어 비상정지 버튼으로 서보를 푼다 (손으로 밀 수 있게)
                 "emg_releases_servo": ParameterValue(LaunchConfiguration('emg_releases_servo'), value_type=bool),
                 # ekf_m.yaml 이 바퀴 속도와 IMU 를 공분산으로 섞어 쓴다
@@ -60,9 +60,9 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"port": LaunchConfiguration('power_port')},
-            {"m_bConveyor_option": False},
+            {"conveyor_option": False},
             # 예전 M 은 후방 Cyglidar 대신 초음파로 뒤를 본다 (use_ultrasonic:=true use_cyglidar:=false)
-            {"m_bUltrasonic_option": ParameterValue(LaunchConfiguration('use_ultrasonic'), value_type=bool)}
+            {"ultrasonic_option": ParameterValue(LaunchConfiguration('use_ultrasonic'), value_type=bool)}
         ]
     )
     
@@ -108,7 +108,7 @@ def generate_launch_description():
             DeclareLaunchArgument('use_cyglidar', default_value='false',
                                   description='신형 M 후방 Cyglidar D2 실행'),
             DeclareLaunchArgument('use_ultrasonic', default_value='true',
-                                  description='구형 M 후방 초음파 켜기·발행 (range_points_DL/RL/RR/DR)'),
+                                  description='구형 M 후방 초음파 켜기·발행 (range_points_dl/rl/rr/dr)'),
             # 기본값은 구형 M(초음파 사용)일 때만 켠다. 신형 M 은 뒤쪽 서보 버튼이 있어 끈다
             DeclareLaunchArgument('emg_releases_servo', default_value=LaunchConfiguration('use_ultrasonic'),
                                   description='비상정지 버튼을 누르면 서보를 풀기 (구형 M)'),

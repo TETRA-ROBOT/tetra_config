@@ -396,6 +396,7 @@ docking_server:
       use_external_detection_pose: true
       marker_family: "tag36h11:"
       camera_frame: "camera"
+      # 보드 CN 코드(conveyor_auto_move_cmd): 1 올림, 0 내림. H 리프트는 2 가 최대 높이
       lift_action_mode: 1
       filter_coef: 0.1
 

@@ -38,7 +38,7 @@ def generate_launch_description():
                 # 바퀴 반지름·간격을 모델별로 고른다. 빠지면 M 값으로 주행해 회전 속도와 오도메트리가 틀어진다
                 "robot_model": "s",
                 "port": LaunchConfiguration('wheel_port'),
-                "m_bEKF_option": True,  # default: False
+                "ekf_option": True,  # default: False
             }
         ]
     )
@@ -53,8 +53,8 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"port": LaunchConfiguration('power_port')},
-            {"m_bConveyor_option": False},
-            {"m_bUltrasonic_option": False}
+            {"conveyor_option": False},
+            {"ultrasonic_option": False}
         ]
     )
     

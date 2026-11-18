@@ -40,7 +40,7 @@ def generate_launch_description():
                 # 포트는 serial_port_actions 가 ttyS0~5 를 스캔해 구동보드를 찾아 넣는다.
                 # 못 찾으면 EDU 배선 기본값 ttyS2 로 돌아간다 (드라이버 코드 기본값 ttyS0 은 다른 모델 배선)
                 "port": LaunchConfiguration('wheel_port'),
-                "m_bEKF_option": True,  # default: False
+                "ekf_option": True,  # default: False
             }
         ]
     )
@@ -55,8 +55,8 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"port": LaunchConfiguration('power_port')},
-            {"m_bConveyor_option": False},
-            {"m_bUltrasonic_option": False}
+            {"conveyor_option": False},
+            {"ultrasonic_option": False}
         ]
     )
     
