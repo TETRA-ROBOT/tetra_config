@@ -1,10 +1,12 @@
 amcl:
   ros__parameters:
     use_sim_time: false
-    alpha1: 0.1
-    alpha2: 0.1
-    alpha3: 0.1
-    alpha4: 0.1
+    # 움직임 잡음 (Nav2 기본값). 0.1 이면 파티클이 바퀴 오도메트리의 실제 방향 오차(실측 5분 RMS 3.5°)만큼 퍼지지 않아
+    # 틀린 자세에 몰린 뒤 빠져나오지 못했다
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
     alpha5: 0.0
     base_frame_id: "base_footprint"
     beam_skip_distance: 0.3
@@ -16,23 +18,32 @@ amcl:
     laser_likelihood_max_dist: 2.5 #2.0
     laser_max_range: 25.0 #100.0
     laser_min_range: -1.0
-    laser_model_type: "likelihood_field"
+    # likelihood_field 는 빔 점수를 '더해서' 가중치를 만들어 방향 오차를 거의 구분하지 못한다.
+    # M 실기(2026-11-19, 42시간 연속 운행 뒤)에서 AMCL 자세가 0.25 m·12° 틀어져 스캔이 지도와 23% 만 맞았는데(바른 자세 87%),
+    # 같은 스캔으로 Nav2 식을 재현하면 바른 자세의 가중치가 2.1 배(방향 5° 오차면 1.46 배, 2° 면 1.12 배)뿐이라
+    # 오도메트리 방향 오차가 쌓여도 되돌리지 못했다. _prob 는 빔 확률을 곱해서(로그 합) 같은 비교가 54 nats 로 벌어진다.
+    # z_rand 0.5 가 사람 같은 동적 장애물 빔 하나의 감점을 묶어 준다 (EDU 와 같은 설정)
+    laser_model_type: "likelihood_field_prob"
     max_beams: 60
     max_particles: 3000
     min_particles: 500
     odom_frame_id: "odom"
     pf_err: 0.01
     pf_z: 0.99
-    recovery_alpha_fast: 0.5
-    recovery_alpha_slow: 0.0001
+    # 무작위 파티클 주입을 끈다 (Nav2 기본값 0.0/0.0). 켜 두면 사람이 지나가 점수가 잠깐 떨어질 때마다 지도 곳곳에 파티클을 뿌려
+    # M 실기에서 방향 표준편차가 59° 까지 퍼졌다 (EDU 는 같은 원인으로 위치가 수 m 씩 튀었다).
+    # 위치를 정말 잃으면 웹의 위치 지정(/initialpose)으로 바로잡는다
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
     resample_interval: 1
     robot_model_type: "nav2_amcl::DifferentialMotionModel"
     save_pose_rate: 0.5
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 0.2 #1.0
-    update_min_a: 0.05 #0.2
-    update_min_d: 0.05 #0.25
+    # 5 cm·0.05 rad 마다 리샘플링(resample_interval 1)하면 파티클 다양성이 금방 사라진다. EDU 와 같은 값
+    update_min_a: 0.1 #0.2
+    update_min_d: 0.15 #0.25
     z_hit: 0.5
     z_max: 0.05
     z_rand: 0.5
