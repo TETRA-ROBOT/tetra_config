@@ -386,7 +386,8 @@ docking_server:
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
     # 재시도 때 Jazzy 는 항상 전진으로 staging 을 찾아가, 목표가 옆·뒤면 제자리에서 70~95도 돌았다 (좁은 도크 자리에서 위험)
-    max_retries: 0
+    # 접근 중 태그를 끝내 못 찾으면 staging 으로 물러나 한 번 더 찾는다 (MH 실기 2026-11-18: 0 이라 한 번 놓치면 바로 실패)
+    max_retries: 1
     base_frame: "base_footprint"
     fixed_frame: "odom"
     # M 은 후방 카메라로 마커를 보며 뒤로 도킹한다 (웹 옵션 docking_front: 0 과 맞춘다).
@@ -449,6 +450,9 @@ docking_server:
       charge_requires_contact: true
       blind_approach_distance: 0.25
       blind_approach_timeout: 8.0
+      # 비스듬히 접근하다 태그를 놓치면 이 거리 안에서는 마지막 태그 위치 쪽으로 몰아 다시 찾는다 (후면 카메라 화각 +-20 도로 좁음: 다시 찾는 거리를 줄임 (탐색은 이미 켜져 있음))
+      lost_tag_reacquire_distance: 0.8
+      lost_tag_reacquire_time: 4.0
       # 도킹은 후진이라 뒤 범퍼(0x08), 언도킹은 전진이라 앞 범퍼(0x01)를 본다
       bumper_topic: "bumper_data"
       bumper_mask: 8

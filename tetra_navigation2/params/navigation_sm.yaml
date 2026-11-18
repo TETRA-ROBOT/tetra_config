@@ -485,7 +485,8 @@ docking_server:
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
     # 실패하면 그 자리에 멈추고 API 가 이유를 웹에 알린다 (재시도 후진이 staging 에 못 들어 30 초 헤맨 EDU 사례)
-    max_retries: 0
+    # 접근 중 태그를 끝내 못 찾으면 staging 으로 물러나 한 번 더 찾는다 (MH 실기 2026-11-18: 0 이라 한 번 놓치면 바로 실패)
+    max_retries: 1
 
     base_frame: "base_link"
     fixed_frame: "odom"
@@ -525,6 +526,12 @@ docking_server:
       charge_requires_contact: true
       blind_approach_distance: 0.25
       blind_approach_timeout: 8.0
+      # 비스듬히 접근하다 태그를 놓치면 이 거리 안에서는 마지막 태그 위치 쪽으로 몰아 다시 찾는다 (MH 와 같은 D435 전방 카메라)
+      lost_tag_reacquire_distance: 1.0
+      lost_tag_reacquire_time: 4.0
+      # staging 에서 태그가 안 보이면 좌우로 돌며 찾고, 보이면 영상 중앙으로 맞춘 뒤 접근한다
+      tag_search_angle: 0.6
+      tag_search_speed: 0.1
 
       # 태그 정렬 staging (navigation_edu.yaml 설명 참고). 비스듬한 자리에서 바로 접근하지 않고
       # 태그 정면 축 위 0.6 m 지점으로 먼저 간다
