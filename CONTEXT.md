@@ -41,3 +41,7 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    `filter_info_topic: /costmap_filter_info`)가 있다. 마스크(`/zone_filter_mask`)와 필터 정보는 관제 API 가 transient_local 로 보낸다 (TetraSingleManagement `lib/robot/zones/zone-filter-publisher.ts`).
    마스크 값(1~90%)이 비용이 되어 전역 경로가 그 구간을 되도록 피한다. 구간이 없으면 값이 모두 0 이라 동작이 예전과 같다.
    local_costmap 에는 넣지 않았다 (제어기까지 피하게 하면 좁은 곳에서 멈출 수 있다). 시뮬레이션 `tetra_lab/robot_gazebo_sim/params/navigation_sim.yaml` 에는 아직 없다.
+5. **도킹 접근 속도**: `params/navigation_{m,mh,edu,sm}.yaml` docking_server `controller:` 의 `v_linear_max`·`v_linear_min`·`slowdown_radius` 가
+   staging 이후 충전기까지의 속도를 정한다 (graceful: 남은 거리 + 0.25 m 에 비례해 줄인다). 기본 0.10 / 0.0385 / 0.65 = 도크 0.4 m 앞부터 줄여 약 0.04 m/s 로 닿는다.
+   관제 API 가 도킹 목표마다 관리자 설정 '도킹 속도'·'감속 시작 거리'로 세 값을 덮어쓰므로, YAML 은 관제 없이 도킹할 때와 재시작 직후 첫 언도킹에만 쓰인다.
+   언도킹 후진과 리프트 도킹도 같은 제어기 값을 쓴다. 도킹 중에는 docking_server 파라미터를 바꿀 수 없다 (서버 mutex, tetra_util CONTEXT.md).

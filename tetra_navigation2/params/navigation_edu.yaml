@@ -518,16 +518,21 @@ docking_server:
 
     # Docking Controller
     controller:
+      # 접근 속도 v = clamp(v_linear_max * r / slowdown_radius, v_linear_min, v_linear_max), r = 도크 자세까지 남은 거리 + 0.25 m
+      # (도킹 서버가 제어 목표를 도크 자세 0.25 m 안쪽에 둔다). 0.65 면 도크 0.4 m 앞부터 줄여 약 0.04 m/s 로 닿는다
+      # (예전 0.45 / 0.05: 0.2 m 앞부터 줄다가 0.056 m/s 로 닿았다). 곡선 모양(k_phi·k_delta)은 속도와 상관없다.
+      # 관제가 도킹 목표마다 관리자 설정(도킹 속도·감속 시작 거리)으로 v_linear_max·v_linear_min·slowdown_radius 를 덮어쓴다
+      # (TetraSingleManagement lib/robot/services/dock-speed.ts). 여기 값은 관제 없이 도킹하거나 재시작 뒤 첫 언도킹에 쓴다
       # 제어 목표는 도크 자세보다 0.25 m 안쪽이라, 횡 오차는 목표에 가서야 0 이 되고 접점 위치(목표 0.31 m 앞)에서는 아직 비스듬하다.
       # 3.0/2.0 은 staging 에서 10 cm 벗어나 시작하면 접촉 때 heading 약 7도 (실기 15:54 범퍼 충돌 때 8.9도, 축에서 2.7 cm).
       # 5.0/3.0 은 축으로 먼저 들어온 뒤 곧게 간다. 더 키우면 축으로 꺾을 때 태그가 영상 오른쪽 밖으로 나간다 (8.0/4.0: 15 cm 에서 시야 밖)
       k_phi: 5.0
       k_delta: 3.0
-      v_linear_min: 0.05
+      v_linear_min: 0.0385
       # 언도킹 후진도 이 속도를 쓴다. 후방 센서가 없어 느리게 둔다
       v_linear_max: 0.10
       v_angular_max: 0.15
-      slowdown_radius: 0.45
+      slowdown_radius: 0.65
 
       # Collision Avoidance during Docking
       use_collision_detection: true
