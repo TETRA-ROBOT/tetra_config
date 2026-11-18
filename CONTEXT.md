@@ -45,3 +45,7 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    staging 이후 충전기까지의 속도를 정한다 (graceful: 남은 거리 + 0.25 m 에 비례해 줄인다). 기본 0.10 / 0.0385 / 0.65 = 도크 0.4 m 앞부터 줄여 약 0.04 m/s 로 닿는다.
    관제 API 가 도킹 목표마다 관리자 설정 '도킹 속도'·'감속 시작 거리'로 세 값을 덮어쓰므로, YAML 은 관제 없이 도킹할 때와 재시작 직후 첫 언도킹에만 쓰인다.
    언도킹 후진과 리프트 도킹도 같은 제어기 값을 쓴다. 도킹 중에는 docking_server 파라미터를 바꿀 수 없다 (서버 mutex, tetra_util CONTEXT.md).
+6. **AMCL 과 자동 위치 재추정**: 모든 모델 `params/amcl_localization_*.yaml` 은 `likelihood_field_prob` 을 쓰고 무작위 파티클 주입(`recovery_alpha_*`)을 끈다
+   (주입이 위치를 튀게 했다). 위치를 잃으면 `launch/auto_relocalization_launch.py`(모델별 `tetra_navigation_*.launch.py` 가 include)의
+   `auto_relocalizer`(tetra_util/tetra_relocalization)가 스캔을 지도에 맞춰 바로잡는다. 그 `scan_topic` 은 AMCL 과 같게 준다 (H·MH `scan_merge`).
+   AMCL YAML 에 `use_sim_time` 을 쓰지 않는다: params 파일 값이 런치의 `-p use_sim_time` 보다 우선해서 실로봇 AMCL 이 sim time 으로 뜬다.

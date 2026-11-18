@@ -81,27 +81,20 @@ def generate_launch_description():
     )
 
 
-    auto_relocalize_arg = DeclareLaunchArgument(
-        'auto_relocalize', default_value='true',
-        description='AMCL 이 위치를 잃으면 스캔을 지도에 맞춰 찾은 자세로 바로잡는다 (tetra_util/tetra_relocalization)'
-    )
-
-    # AMCL 의 무작위 파티클 주입(recovery_alpha)은 위치를 튀게 해서 껐다 (amcl_localization_m.yaml).
-    # 대신 이 노드가 스캔이 지도와 맞는 비율을 재다가, 확실히 더 잘 맞고 헷갈리는 후보가 없는 자세일 때만 /initialpose 를 보낸다
-    auto_relocalizer = Node(
-        package='tetra_relocalization',
-        executable='auto_relocalizer',
-        name='auto_relocalizer',
-        output='screen',
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
-        condition=IfCondition(LaunchConfiguration('auto_relocalize')),
+    # AMCL 이 위치를 잃으면 스캔을 지도에 맞춰 바로잡는다 (auto_relocalize:=false 로 끈다). scan_topic 은 AMCL 과 같게
+    auto_relocalization_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('tetra_navigation2'), 'launch', 'auto_relocalization_launch.py')),
+        launch_arguments={
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'scan_topic': 'scan',
+        }.items()
     )
 
     launchDescriptionObject = LaunchDescription()
     launchDescriptionObject.add_action(sim_time_arg)
-    launchDescriptionObject.add_action(auto_relocalize_arg)
     launchDescriptionObject.add_action(localization_launch)
     launchDescriptionObject.add_action(navigation_launch)
-    launchDescriptionObject.add_action(auto_relocalizer)
+    launchDescriptionObject.add_action(auto_relocalization_launch)
 
     return launchDescriptionObject

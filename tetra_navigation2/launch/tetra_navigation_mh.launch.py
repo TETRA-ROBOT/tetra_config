@@ -90,10 +90,21 @@ def generate_launch_description():
         parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
 
+    # AMCL 이 위치를 잃으면 스캔을 지도에 맞춰 바로잡는다 (auto_relocalize:=false 로 끈다). scan_topic 은 AMCL 과 같게
+    auto_relocalization_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('tetra_navigation2'), 'launch', 'auto_relocalization_launch.py')),
+        launch_arguments={
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'scan_topic': 'scan_merge',
+        }.items()
+    )
+
     launchDescriptionObject = LaunchDescription()
     launchDescriptionObject.add_action(sim_time_arg)
     launchDescriptionObject.add_action(localization_launch)
     launchDescriptionObject.add_action(navigation_launch)
+    launchDescriptionObject.add_action(auto_relocalization_launch)
     #launchDescriptionObject.add_action(rviz_node)
 
     return launchDescriptionObject
