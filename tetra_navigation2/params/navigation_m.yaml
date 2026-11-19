@@ -531,5 +531,8 @@ docking_server:
       projection_time: 1.0
       simulation_time_step: 0.1
       # 제어 목표는 도크 자세보다 0.25 m 깊다 (Jazzy docking_server backward_projection). 0.45 면 도크 앞 0.2 m 만 빠져
-      # 접점 0.24 m 전에 충전기 몸체를 충돌로 보고 멈췄다 (2026-11-10 실기). 마지막 0.5 m 는 곧게 저속 후진 + 뒤 범퍼 정지로 막는다
-      dock_collision_threshold: 0.75
+      # 접점 0.24 m 전에 충전기 몸체를 충돌로 보고 멈췄다 (2026-11-10 실기).
+      # 0.75 면 staging(0.7 m) 출발점은 제어 목표에서 0.95 m 라 검사에 들어가, 옆벽 0.27 m 인 도크 자리에서 초음파가 발자국
+      # 바로 옆에 남긴 옛 표시 하나로 출발하자마자 905 로 멈췄다 (2026-11-19 실기). staging 부터 도크까지(0.95 m)를 빼고,
+      # 이 구간은 0.1 m/s 이하 후진 + 뒤 범퍼 정지(bumper_mask 8)로 막는다. 도킹 cmd_vel 은 collision_monitor 를 거치지 않는다
+      dock_collision_threshold: 1.0
