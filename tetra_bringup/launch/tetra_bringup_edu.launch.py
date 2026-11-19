@@ -17,6 +17,7 @@ from bringup_common import (  # noqa: E402
     ekf_node,
     joint_state_publisher_node,
     joystick_node,
+    lidar_dock_detector_node,
     realsense_apriltag_node,
     robot_pose_publisher_node,
     robot_state_publisher_node,
@@ -139,6 +140,8 @@ def generate_launch_description():
             rosapi_node,
             kanavi_lidar_node,
             pointcloud_to_scan_node,
+            # 라이다 도킹 마커(스테이션의 V 자 홈) 검출. 관제 옵션 dock_detection 이 lidar 일 때 AprilTag 대신 쓴다 (params/vdock_edu.yaml)
+            lidar_dock_detector_node('vdock_edu.yaml'),
             web_video_server_node,
 
         # apriltag_ros

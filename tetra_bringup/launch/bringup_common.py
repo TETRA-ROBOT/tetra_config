@@ -152,6 +152,38 @@ def usb_camera_with_apriltag(undistort_corners: bool = False) -> List[IncludeLau
     return [usb_camera_include(), usb_camera_apriltag_include(undistort_corners)]
 
 
+def persistent_dir() -> str:
+    """로봇별 저장소. 실행 스크립트(start_real_robot.sh)와 관제 API 가 환경 변수 PERSISTENT_DIR 로 정한다 (usb_camera.launch.py 와 같은 규칙)."""
+    return os.environ.get('PERSISTENT_DIR') or '/home/tetra/tetra_integration/persistent'
+
+
+def lidar_dock_detector_node(params_file_name: str) -> Node:
+    """2D 스캔에서 스테이션의 도킹 마커(V 자 홈)를 찾아 /vdock/detected_pose 로 낸다 (line_docking_detector).
+
+    관제 옵션 dock_detection 이 lidar 일 때 도킹 플러그인(tetra_docking)이 AprilTag 대신 이 자세를 쓴다.
+    태그 모드에서는 아무도 쓰지 않지만, 옵션을 바꿀 때 브링업을 다시 띄우지 않게 항상 띄운다.
+    Nav2 기본 검출 토픽(detected_dock_pose)은 쓰지 않는다: SimpleChargingDock 이 그 토픽을 받으면 태그 모드의 검출을 덮어쓴다.
+
+    params_file_name: tetra_bringup/params 의 모델 기본값. 스테이션마다 홈 모양이 다를 수 있어
+    PERSISTENT_DIR/docking/vdock.yaml 이 있으면 그 값을 위에 덮는다 (노드 이름 vdock_detector 아래에 쓴다).
+    """
+    params = [os.path.join(get_package_share_directory('tetra_bringup'), 'params', params_file_name)]
+    robot_override = os.path.join(persistent_dir(), 'docking', 'vdock.yaml')
+    if os.path.isfile(robot_override):
+        params.append(robot_override)
+    return Node(
+        package='line_docking_detector',
+        executable='line_detector_node',
+        name='vdock_detector',
+        output='screen',
+        parameters=params,
+        remappings=[
+            ('docking_target_pose', '/vdock/detected_pose'),
+            ('line_detection_markers', '/vdock/markers'),
+        ],
+    )
+
+
 def realsense_apriltag_node(detector_parameters: Optional[Dict[str, object]] = None) -> Node:
     """RealSense 컬러 영상(/camera1/color/image_raw)에서 36h11, 0.1 m 태그를 찾는다.
 

@@ -1,0 +1,37 @@
+# TETRA-EDU 라이다 도킹 마커(V 자 홈) 검출기 기본값 (line_docking_detector, bringup_common.lidar_dock_detector_node)
+#
+# 스테이션 정면, 라이다 높이(약 0.17 m)에 붙인 V 자 홈을 Kanavi R270 의 /scan 에서 찾는다.
+# 관제 옵션 dock_detection 이 lidar 이면 도킹 플러그인(tetra_docking)이 이 검출을 AprilTag 대신 쓴다.
+# 스테이션마다 홈 모양이 다를 수 있어, PERSISTENT_DIR/docking/vdock.yaml 이 있으면 그 값이 이 파일 위에 덮인다.
+#
+# 실측 (2026-11-18, 스테이션 1대, 녹화 edu_vdock_1118_1425 로 오프라인 비교):
+#   - 홈: 벌어진 각 약 94°, 폭 약 0.31 m, 깊이 약 0.145 m. 1 m 쯤에서는 각이 약 110° 로 얕게 보인다 (빔 퍼짐, 1 cm 거리 단위)
+#   - 도킹 완료 때 꼭짓점은 base_link 앞 0.46 m. 라이다(앞 0.045 m)에서 0.42 m 인데 0.5 m 안쪽은 날개 끝이
+#     최소 거리(약 0.31 m)에 잘려 검출되지 않는다 -> 마지막 약 0.1 m 는 도킹 플러그인이 odom 으로 마저 간다
+#   - 아래 값으로 라이다→꼭짓점 0.5~0.9 m 에서 검출률 91~100 %, 위치 오차 1~4 cm, yaw 오차 p90 3° 이내.
+#     1.0 m 넘으면 22 % 라 staging 은 도크 0.4 m 앞(꼭짓점까지 약 0.82 m)에서 한다 (navigation_edu.yaml)
+vdock_detector:
+  ros__parameters:
+    scan_topic: "/scan"
+    laser_frame: "lidar_link"
+    target_frame: "vdock"
+
+    # 마커 좌표: +X = 도킹 들어가는 방향(스테이션 쪽), +Y = 왼쪽. 점을 이어 템플릿 선분을 만든다 [x0, y0, x1, y1, ...]
+    # 원점은 꼭짓점이 아니라 그보다 0.12 m 로봇 쪽이다: 도킹 완료 때 base_link 앞 0.34 m 로, AprilTag 면과 같은 자리다.
+    # 그래서 navigation_edu.yaml 의 external_detection_translation_x(-0.34)·회전을 태그와 라이다가 같이 쓴다
+    # (원점을 옮기면 검출 위치도 그만큼 옮겨지는 것을 녹화로 확인했다: 0.559 -> 0.438 m)
+    # 2026-11-19 손으로 똑바로 도킹(충전 중)시킨 자세에서 확인: 꼭짓점 base 앞 0.444 m, 좌우 0.7 cm, 홈 축 0.6°.
+    # 이 값으로 검출한 원점이 base 앞 0.291 m(정답 0.295), yaw 0.8°(정답 0.6°)로 나와 그대로 둔다.
+    # 홈이 스테이션에 비뚤게 붙으면 로봇도 그만큼 비뚤게 들어간다 (홈 축 = 도킹 방향). 고정 상태부터 확인할 것
+    template_points: [-0.01, 0.16, 0.12, 0.0, -0.01, -0.16]
+
+    # 가까이 94°, 멀리 약 110° 로 보여 그 사이(100°)를 기준으로 넓게 받는다. 모양 잔차도 1 cm 거리 단위 계단을 견디게 늘렸다
+    expected_angle_deg: 100.0
+    angle_tolerance_deg: 18.0
+    shape_match_tolerance: 0.08
+
+    # 라이다 각도 기준이다. lidar_link 는 base_link 에서 -90° 돌아 있어 로봇 정면이 90° 다. 정면 ±60° 만 본다
+    scan_angle_min_deg: 30.0
+    scan_angle_max_deg: 150.0
+    min_range: 0.1
+    max_range: 1.5

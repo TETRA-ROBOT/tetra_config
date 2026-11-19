@@ -33,6 +33,7 @@
   <exec_depend>kanavi_vl</exec_depend>
   <exec_depend>pointcloud_to_laserscan</exec_depend>
   <exec_depend>laser_line_extraction_ros2</exec_depend>
+  <exec_depend>line_docking_detector</exec_depend>
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>tetra_gpio_controller</exec_depend>
   <exec_depend>autonics_rgbd_ros</exec_depend>
