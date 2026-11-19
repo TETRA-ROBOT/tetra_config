@@ -49,3 +49,6 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    (주입이 위치를 튀게 했다). 위치를 잃으면 `launch/auto_relocalization_launch.py`(모델별 `tetra_navigation_*.launch.py` 가 include)의
    `auto_relocalizer`(tetra_util/tetra_relocalization)가 스캔을 지도에 맞춰 바로잡는다. 그 `scan_topic` 은 AMCL 과 같게 준다 (H·MH `scan_merge`).
    AMCL YAML 에 `use_sim_time` 을 쓰지 않는다: params 파일 값이 런치의 `-p use_sim_time` 보다 우선해서 실로봇 AMCL 이 sim time 으로 뜬다.
+7. **정지 중 EKF 방향 흐름 (M)**: `ekf_m.yaml` 의 imu0 는 `imu/data_gated` 다. 브링업이 띄우는 `imu_standstill_gate`(tetra_util/tetra_imu_gate, `bringup_common.imu_standstill_gate_node`)가
+   바퀴가 서 있으면 IMU 를 막는다. 바퀴 정지 분산(1e-9)만으로는 process noise 때문에 자이로 영점 오차가 섞여 정지 중 -6°/h 흘렀다 (2026-11-20).
+   다른 모델 EKF 도 IMU 회전 속도를 쓰지만 아직 막지 않는다. 넣을 때는 런치에 노드를 추가하고 imu0 를 바꾼다.

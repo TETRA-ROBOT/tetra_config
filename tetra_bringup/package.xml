@@ -42,6 +42,7 @@
   <exec_depend>tetra_wheel_driver</exec_depend>
   <exec_depend>tetra_power_driver</exec_depend>
   <exec_depend>tetra_docking</exec_depend>
+  <exec_depend>tetra_imu_gate</exec_depend>
   <exec_depend>tetra_description</exec_depend>
 
   <test_depend>ament_lint_common</test_depend>

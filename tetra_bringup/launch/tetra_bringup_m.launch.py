@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tetra_serial_ports import serial_port_actions  # noqa: E402
 from bringup_common import (  # noqa: E402
     ekf_node,
+    imu_standstill_gate_node,
     joint_state_publisher_node,
     joystick_node,
     robot_pose_publisher_node,
@@ -52,6 +53,8 @@ def generate_launch_description():
     
     # EKF Localization
     ekf_localization_node = ekf_node('ekf_m.yaml')
+    # 바퀴가 서 있으면 IMU 를 EKF 로 넘기지 않는다 (ekf_m.yaml imu0: imu/data_gated)
+    imu_gate_node = imu_standstill_gate_node()
     
     # tetra_power_driver Board
     tetra_power_driver_node = Node(
@@ -117,6 +120,7 @@ def generate_launch_description():
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
             ekf_localization_node,
+            imu_gate_node,
             tetra_power_driver_node, 
             iahrs_driver_node,
             joy_node,

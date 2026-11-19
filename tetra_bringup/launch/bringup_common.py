@@ -126,6 +126,19 @@ def ekf_node(params_file_name: str) -> Node:
     )
 
 
+def imu_standstill_gate_node() -> Node:
+    """imu/data → imu/data_gated. 바퀴가 서 있는 동안 IMU 를 막아 자이로 영점 오차로 EKF 방향이 흐르지 않게 한다.
+
+    EKF 파라미터의 imu0 를 imu/data_gated 로 바꾼 모델에서만 넣는다 (tetra_util/tetra_imu_gate).
+    """
+    return Node(
+        package='tetra_imu_gate',
+        executable='imu_standstill_gate',
+        name='imu_standstill_gate',
+        output='screen',
+    )
+
+
 def usb_camera_include() -> IncludeLaunchDescription:
     """후면 usb_cam 을 로봇별 카메라 보정 파일로 띄운다 (usb_camera.launch.py)."""
     return IncludeLaunchDescription(
