@@ -192,15 +192,20 @@ def generate_launch_description():
             'laser_2_topic': '/scan_filtered_2',
             'merged_scan_topic': '/scan_merge',
             'target_frame': 'laser_merge',
+            # 앞·뒤 스캔은 최대 33 ms 차이로 짝지어진다. 도는 중(0.8 rad/s)에는 1.5° 어긋나므로 odom 으로 같은 시각에 맞춘다
+            # (dual_laser_merger fixed_frame, 0002 패치 필요)
+            'fixed_frame': 'odom',
             'laser_1_x_offset': 0.0,
             'laser_1_y_offset': 0.0,
             'laser_1_yaw_offset': 0.0,
-            'laser_2_x_offset': -0.04,
+            # 뒤 라이다를 laser_link2 x 로 -4 cm 옮기던 값은 이 로봇에서 앞 라이다와 3.4 cm 어긋나게 만들었다
+            # (2026-11-20 정지 스캔 ICP: URDF 만 쓰면 겹치는 벽 차이 6 mm, -0.04 를 넣으면 34 mm). 외부 보정은 URDF 에 둔다
+            'laser_2_x_offset': 0.0,
             'laser_2_y_offset': 0.0,
             'laser_2_yaw_offset': 0.0,
             'tolerance': 0.01,
             'queue_size': 1000,
-            'angle_increment': 0.001,
+            'angle_increment': 0.005818,  # 0.333 deg = SICK TiM5xx 해상도. 0.001 이면 6284칸 중 85% 가 inf 라 AMCL max_beams 60 이 유효 빔 7개만 쓴다
             'scan_time': 0.067,
             'range_min': 0.01,
             'range_max': 20.0,

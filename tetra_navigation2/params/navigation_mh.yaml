@@ -52,12 +52,12 @@ controller_server:
       approach_velocity_scaling_dist: 1.0
       cost_scaling_dist: 0.45
       cost_scaling_gain: 1.0
-      desired_linear_vel: 0.8
+      # 관제가 Nav2 가 뜰 때 관리자 설정 base_speed(이 로봇 0.4)로 덮어쓴다. 관제 없이 뜨거나 덮어쓰기 전에는 이 값으로 달리므로 같게 둔다
+      desired_linear_vel: 0.4
       inflation_cost_scaling_factor: 1.75 #3.0
       lookahead_dist: 0.8  # Adjust to balance between responsiveness and smoothness
       lookahead_time: 1.0 #1.2  # Dynamic lookahead adjustment based on speed
       max_allowed_time_to_collision_up_to_carrot: 1.0
-      max_angular_vel: 0.8 #1.0  # Allow sufficient angular velocity for tight turns
       max_angular_accel: 3.3
       max_lookahead_dist: 1.5
       min_lookahead_dist: 0.5  # Large enough for the robot to navigate tight turns smoothly
@@ -87,15 +87,21 @@ local_costmap:
       height: 10 #8
       resolution: 0.05
       footprint: "[[0.4, 0.29], [0.4, -0.29], [-0.4, -0.29], [-0.4, 0.29]]"
-      plugins: ["obstacle_layer", "stvl_layer", "inflation_layer"]
+      # stvl_layer 는 뺐다: MH 2D 구성에는 /livox/lidar 도, RealSense 점구름(/camera1/depth/color/points)도 발행되지 않아 입력이 없다
+      # (설정 블록은 RealSense 점구름을 켤 때 다시 쓰도록 남긴다)
+      plugins: ["obstacle_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 2.58 #1.0
+        # RPP 의 비용 감속은 발자국에서 cost_scaling_dist(0.45 m)까지만 본다 (내접 0.29 + 0.45 = 0.74 m 안쪽 비용만 쓰임).
+        # 1.0 m 안의 비용 값은 2.58 일 때와 같고, costmap 갱신 CPU 가 약 26 % 준다 (격리 도메인 재생 실험)
+        inflation_radius: 1.0
         cost_scaling_factor: 1.75 #3.0
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: scan virtual_obstacle_source scan_b
+        # 앞(scan=/scan_filtered_1)·뒤(scan2=/scan_filtered_2) SICK 둘 다. 예전 scan_b 는 정의가 없어 없는 토픽 /scan_b 를 구독했고
+        # 뒤 라이다가 지역 costmap 에 빠져 BackUp·Spin·언도킹 충돌 검사가 뒤쪽 112도를 보지 못했다
+        observation_sources: scan scan2 virtual_obstacle_source
         scan:
           topic: /scan_filtered_1 #/scan
           max_obstacle_height: 2.0
@@ -120,7 +126,9 @@ local_costmap:
           topic: /Local_virtual_wall
           data_type: PointCloud2
           max_obstacle_height: 2.0
-          clearing: True
+          # 가상벽 점구름은 map 프레임이라 센서 원점이 지도 원점이다. clearing 이면 지도 원점에서 벽 점마다 광선을 그어
+          # 그 길의 라이다 장애물을 지우고, 창 밖이면 "Sensor origin ... out of map bounds" 를 하루 수만 번 낸다. 벽은 표시만 한다
+          clearing: False
           marking: True
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
@@ -222,7 +230,8 @@ global_costmap:
           topic: /Global_virtual_wall
           data_type: PointCloud2
           max_obstacle_height: 2.0
-          clearing: True
+          # 지역 costmap 의 virtual_obstacle_source 와 같은 이유로 지우지 않는다
+          clearing: False
           marking: True
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
@@ -305,7 +314,10 @@ velocity_smoother:
     max_velocity: [2.0, 0.0, 2.0]
     min_velocity: [-2.0, 0.0, -2.0]
     max_accel: [0.3, 0.0, 3.3] # [3.5, 0.0, 3.5]
-    max_decel: [-0.3, 0.0, -3.3] # [-3.5, 0.0, -3.5]
+    # RPP 충돌 감지(1.0 s 앞)로 멈출 때 감속은 이 값이 정한다. -0.3 이면 0.4 m/s 에서 감속 0.27 m + 지연(최악 0.29 s)·보드 램프 0.12 m = 0.39 m 로
+    # 감지 거리 0.4 m 를 거의 다 쓰고, 0.45 m/s 이상에서는 넘는다. -0.6 이면 0.4 m/s 에서 0.26 m, 안전 상한 0.83 m/s (예전 0.41 m/s).
+    # 휠 드라이버는 정지 명령을 1.5 m/s^2 로 줄이므로 -0.6 도 하드웨어 한계 안이다. 가속은 그대로 둔다
+    max_decel: [-0.6, 0.0, -3.3] # [-3.5, 0.0, -3.5]
     odom_topic: "/odometry/filtered"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
@@ -323,40 +335,82 @@ collision_monitor:
     base_shift_correction: True
     stop_pub_timeout: 2.0
 
-    polygons: ["VelocityPolygonStop"]
+    # 예전에는 "VelocityPolygonStop" 하나가 action_type slowdown(50 %)이라 라이다로는 한 번도 서지 않았고,
+    # 속도 범위가 제자리 회전·0.1 m/s 미만·회전하며 전진을 덮지 않아 "Velocity is not covered" 가 하루 3,800~10,000 번 났다.
+    # 정지 다각형(짧게)과 감속 다각형(예전 크기)을 나누고, 두 쪽 모두 velocity_smoother 출력 범위(+-2.0)를 빈틈없이 덮는다.
+    # 정지 다각형 앞 끝 = 범퍼 0.4 m + 최악 정지거리 + 0.1 m 여유. 최악 정지거리 = v*0.238 s(스캔 주기 67 + /scan_merge 지연 88
+    # + 입력 대기 50 + 휠드라이버 33 ms) + v^2/(2*1.5 m/s^2, 휠드라이버 정지 램프) + v*0.025 s(보드 램프 50 ms):
+    #   v 0.45 -> 0.19 m (앞 끝 0.70), v 1.0 -> 0.60 m (앞 끝 1.10), 후진 0.3 -> 0.11 m (뒤 끝 -0.60)
+    # 제자리 회전: 발자국 꼭짓점 반경 0.494 m + 2.6 cm. 도킹·언도킹은 docking_server 가 cmd_vel_nav2 로 바로 보내 이 다각형을 거치지 않는다.
+    polygons: ["VelocityPolygonStop", "VelocityPolygonSlow"]
     VelocityPolygonStop:
       type: "velocity_polygon"
-      action_type: "slowdown" #"stop"
+      action_type: "stop"
+      min_points: 6
+      visualize: True
+      enabled: True
+      polygon_pub_topic: "velocity_polygon_stop"
+      velocity_polygons: ["rotation", "forward_slow", "forward_fast", "backward"]
+      holonomic: false
+      rotation:
+        points: "[[0.52, 0.215], [0.215, 0.52], [-0.215, 0.52], [-0.52, 0.215], [-0.52, -0.215], [-0.215, -0.52], [0.215, -0.52], [0.52, -0.215]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_slow:
+        points: "[[0.70, 0.315], [0.70, -0.315], [-0.32, -0.315], [-0.32, 0.315]]"
+        linear_min: 0.02
+        linear_max: 0.45
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_fast:
+        points: "[[1.10, 0.315], [1.10, -0.315], [-0.32, -0.315], [-0.32, 0.315]]"
+        linear_min: 0.45
+        linear_max: 2.0
+        theta_min: -2.0
+        theta_max: 2.0
+      backward:
+        points: "[[0.32, 0.315], [0.32, -0.315], [-0.60, -0.315], [-0.60, 0.315]]"
+        linear_min: -2.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
+    # 예전 다각형(감속 50 %) 크기는 그대로 두고 속도 범위만 빈틈없이 넓혔다
+    VelocityPolygonSlow:
+      type: "velocity_polygon"
+      action_type: "slowdown"
+      slowdown_ratio: 0.5
       min_points: 6
       visualize: True
       enabled: True
       polygon_pub_topic: "velocity_polygon_slow"
-      velocity_polygons: ["translation_forward_high", "translation_forward_low", "translation_backward", "stopped"]
+      velocity_polygons: ["rotation", "translation_forward_low", "translation_forward_high", "translation_backward"]
       holonomic: false
+      rotation:
+        points: "[[0.65, 0.27], [0.27, 0.65], [-0.27, 0.65], [-0.65, 0.27], [-0.65, -0.27], [-0.27, -0.65], [0.27, -0.65], [0.65, -0.27]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      translation_forward_low:
+        points: "[[1.2, 0.315], [1.2, -0.315], [-0.32, -0.315], [-0.32, 0.315]]"
+        linear_min: 0.02
+        linear_max: 0.7
+        theta_min: -2.0
+        theta_max: 2.0
       translation_forward_high:
         points: "[[2.1675, 0.315], [2.1675, -0.315], [-0.32, -0.315], [-0.32, 0.315]]"
         linear_min: 0.7
-        linear_max: 1.5
-        theta_min: -1.5
-        theta_max: 1.5
-      translation_forward_low:
-        points: "[[1.2, 0.315], [1.2, -0.315], [-0.32, -0.315], [-0.32, 0.315]]"
-        linear_min: 0.1
-        linear_max: 0.699
-        theta_min: -0.3
-        theta_max: 0.3
+        linear_max: 2.0
+        theta_min: -2.0
+        theta_max: 2.0
       translation_backward:
-        points: "[[0.2, 0.315], [0.2, -0.315], [-0.6, -0.315], [-0.6, 0.315]]"
-        linear_min: -0.4
-        linear_max: -0.05
-        theta_min: -0.5
-        theta_max: 0.5
-      stopped:
-        points: "[[0.5, 0.25], [0.5, -0.25], [-0.35, -0.25], [-0.35,  0.25]]"
-        linear_min: 0.0
-        linear_max: 0.0
-        theta_min: -0.1
-        theta_max: 0.1
+        points: "[[0.2, 0.315], [0.2, -0.315], [-0.8, -0.315], [-0.8, 0.315]]"
+        linear_min: -2.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
     # MH 브링업은 /scan·/scan_b 를 내지 않는다 (두 SICK 는 /scan_front·/scan_rear, 합친 결과는 /scan_merge).
     # 없는 토픽을 소스로 두면 "invalid source" 로 항상 정지 명령을 내 Nav2 가 한 발짝도 움직이지 못했다
     observation_sources: ["scan_merge"]
@@ -400,6 +454,13 @@ docking_server:
       docking_threshold: 0.005
       # 도착을 도크 축 깊이로만 본다 (좌우 잔여 오차 1~2 cm 때문에 5 mm 판정이 끝내 안 맞아 충전기를 밀던 것을 막는다)
       docked_by_depth: true
+      # 접점을 요구하므로 깊이 도착 판정을 도크 자세보다 1.5 cm 깊게 둔다 (tetra_docking dock_offset.cpp contact_overtravel).
+      # 도크 자세는 태그에서 0.645 + 영점 0.04 = 0.685 m 라 판정(0.690 m)이 충전 자세(실측 0.677 m)보다 1.3 cm 앞이고,
+      # 접점은 판정 뒤 휠 드라이버 cmd_vel_timeout 0.5 초 동안 밀려 들어갈 때만 붙었다 (2026-11-18 10:51, 16:39, 18:19).
+      # 1.5 cm 면 판정이 0.675 m (충전기 몸체 0.673 m 앞)로 와 도킹 속도를 낮춰도 접점까지 간다
+      # 접근 중(getRefinedPose 0.25 초 안)에만 더한다. 도킹·언도킹 목표 시작 때 도킹 서버의 '이미 도킹됨 / 도크에 없음' 확인은
+      # 예전 판정(도크 자세 - docking_threshold)이라, 충전기 위 로봇(+7 mm)이 접점 신호가 잠깐 끊긴 사이에도 도킹됨으로 남는다
+      contact_overtravel: 0.015
       # 언도킹 후진 거리. MH 는 후방 라이다가 있지만 처음엔 EDU 와 같이 짧게 둔다
       staging_x_offset: -0.4
       staging_yaw_offset: 0.0
