@@ -12,6 +12,10 @@ bt_navigator:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+    # 복구 중 회전(Spin)·후진(BackUp)을 하지 않는 TETRA BT (behavior_trees/ 머리말 참고). Jazzy 는 navigator 별
+    # bt_xml_filename 을 읽지 않으므로 반드시 이 두 키로 준다 (없으면 Nav2 기본 BT 의 0.3 m 후진이 돈다)
+    default_nav_to_pose_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
     
     use_feedback: true
     
@@ -423,7 +427,55 @@ collision_monitor:
     base_shift_correction: True
     stop_pub_timeout: 2.0
 
-    polygons: ["VelocityPolygonStop"]
+    # 예전에는 감속(slowdown 50 %) 다각형 하나뿐이라 라이다에 장애물이 보여도 서지 않고 느리게 밀고 들어갔다
+    # (H 가 복구 후진으로 뒤쪽 안테나를 부쉈다, 2026-11). H·MH 처럼 짧은 정지 다각형을 따로 두고 감속 다각형은 예전 그대로 둔다.
+    # 발자국 앞 0.1675 m, 뒤 0.318 m, 좌우 0.215 m. 정지 다각형 끝 = 발자국 + 최악 정지거리 + 0.1 m 여유. 정지거리는 MH 식
+    # (지연 0.238 s + v^2/(2*1.5) + v*0.025 s, SM 실측 아님): v 0.15 -> 0.05 m, 0.45 -> 0.19 m, 1.0 -> 0.60 m, 후진 0.3 -> 0.11 m.
+    # 제자리 회전: 뒤 모서리가 쓸고 가는 반경 0.384 m + 여유를 감싸는 팔각형 (앞뒤·좌우 0.42 m).
+    # 도킹·언도킹은 docking_server 가 cmd_vel_nav2 로 바로 보내 이 다각형을 거치지 않는다. 웹 조그(cmd_vel_manual)도 거치지 않는다.
+    # SM 실기 미검증: 처음 띄울 때 라이다가 차체를 찍어 다각형 안에 점이 남으면 로봇이 아예 움직이지 않는다 (collision_monitor_state 확인)
+    # SM 의 MPPI 는 후진(vx_min -0.35)을 하는데 소스는 전방 Kanavi 라이다(scan)뿐이다. 뒤는 라이다 시야에 들어오는 만큼만 본다
+    polygons: ["VelocityPolygonHalt", "VelocityPolygonStop"]
+    VelocityPolygonHalt:
+      type: "velocity_polygon"
+      action_type: "stop"
+      min_points: 6
+      visualize: True
+      enabled: True
+      polygon_pub_topic: "velocity_polygon_stop"
+      velocity_polygons: ["rotation", "forward_creep", "forward_slow", "forward_fast", "backward"]
+      holonomic: false
+      rotation:
+        points: "[[0.42, 0.17], [0.17, 0.42], [-0.17, 0.42], [-0.42, 0.17], [-0.42, -0.17], [-0.17, -0.42], [0.17, -0.42], [0.42, -0.17]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_creep:
+        points: "[[0.32, 0.235], [0.32, -0.235], [-0.34, -0.235], [-0.34, 0.235]]"
+        linear_min: 0.02
+        linear_max: 0.15
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_slow:
+        points: "[[0.46, 0.235], [0.46, -0.235], [-0.34, -0.235], [-0.34, 0.235]]"
+        linear_min: 0.15
+        linear_max: 0.45
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_fast:
+        points: "[[0.87, 0.235], [0.87, -0.235], [-0.34, -0.235], [-0.34, 0.235]]"
+        linear_min: 0.45
+        linear_max: 2.0
+        theta_min: -2.0
+        theta_max: 2.0
+      # 좌우는 회전 반경만큼 넓혀 후진하며 도는 동안 뒤 모서리가 쓸고 가는 자리도 본다
+      backward:
+        points: "[[0.19, 0.42], [0.19, -0.42], [-0.53, -0.42], [-0.53, 0.42]]"
+        linear_min: -2.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
     VelocityPolygonStop:
       type: "velocity_polygon"
       action_type: "slowdown" #"stop"

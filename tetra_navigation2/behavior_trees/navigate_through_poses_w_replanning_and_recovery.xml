@@ -1,34 +1,58 @@
-<root main_tree_to_execute="MainTree">
+<!--
+  TETRA 공통(EDU 제외) 주행 BT: Nav2 Jazzy 기본 BT(navigate_through_poses_w_replanning_and_recovery.xml)에서 복구 동작 중 로봇을 움직이는
+  Spin(제자리 1.57 rad 회전)과 BackUp(0.30 m 후진)을 뺀 사본. 복구는 costmap 초기화와 대기(Wait)만 한다.
+  기본 BT 는 막히면 costmap 을 비운 직후 회전·후진을 해서, 라이다 평면 밖(테이블 상판 등)이나 비운 costmap 에 아직
+  다시 찍히지 않은 장애물을 못 보고 밀고 들어간다 (실기 H: 막힘 복구 후진으로 뒤쪽 안테나 파손. 로그상 2026-11-20 에도 Running backup 16 회).
+  막힌 채 재시도를 다 쓰면 목표가 실패로 끝나고 API 가 웹에 알린다. 회전·후진 중 장애물은 collision_monitor 정지 다각형이 막는다.
+  예전 params 의 navigate_to_pose.bt_xml_filename(~/ros2_ws 경로)은 Jazzy 가 읽지 않아 실제로는 기본 BT 가 돌았다.
+-->
+
+<!--
+  This Behavior Tree replans the global path periodically at 1 Hz through an array of poses continuously
+   and it also has recovery actions specific to planning / control as well as general system issues.
+-->
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
-    <RecoveryNode number_of_retries="10" name="NavigateRecovery">
+    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
+        <ControllerSelector selected_controller="{selected_controller}" default_controller="FollowPath" topic_name="controller_selector"/>
+        <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased" topic_name="planner_selector"/>
         <RateController hz="0.333">
           <RecoveryNode number_of_retries="1" name="ComputePathThroughPoses">
             <ReactiveSequence>
-<!--               Below lines are removed due to Node not recognized error in humble. Need some solution to use NavigateThroughPoses in the future-->
-<!--              <RemovePassedGoals input_goals="{goals}" output_goals="{goals}" radius="0.7"/>-->
-<!--              <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="GridBased"/>-->
+              <RemovePassedGoals input_goals="{goals}" output_goals="{goals}" radius="0.7"/>
+              <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="{selected_planner}" error_code_id="{compute_path_error_code}"/>
             </ReactiveSequence>
-            <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+            <Sequence>
+              <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+            </Sequence>
           </RecoveryNode>
         </RateController>
         <RecoveryNode number_of_retries="1" name="FollowPath">
-          <FollowPath path="{path}" controller_id="FollowPath"/>
-          <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+          <FollowPath path="{path}" controller_id="{selected_controller}" error_code_id="{follow_path_error_code}"/>
+          <Sequence>
+            <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+            <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+          </Sequence>
         </RecoveryNode>
       </PipelineSequence>
-      <ReactiveFallback name="RecoveryFallback">
-        <GoalUpdated/>
-        <RoundRobin name="RecoveryActions">
-          <Sequence name="ClearingActions">
-            <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
-            <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
-          </Sequence>
-          <!--<Spin spin_dist="0.05"/>-->
-          <Wait wait_duration="1"/>
-          <BackUp backup_dist="0.15" backup_speed="0.05"/>
-        </RoundRobin>
-      </ReactiveFallback>
+      <Sequence>
+        <Fallback>
+          <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+          <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+        </Fallback>
+        <ReactiveFallback name="RecoveryFallback">
+          <GoalUpdated/>
+          <RoundRobin name="RecoveryActions">
+            <Sequence name="ClearingActions">
+              <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+            </Sequence>
+            <Wait wait_duration="5.0"/>
+          </RoundRobin>
+        </ReactiveFallback>
+      </Sequence>
     </RecoveryNode>
   </BehaviorTree>
 </root>

@@ -52,3 +52,8 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
 7. **정지 중 EKF 방향 흐름 (M)**: `ekf_m.yaml` 의 imu0 는 `imu/data_gated` 다. 브링업이 띄우는 `imu_standstill_gate`(tetra_util/tetra_imu_gate, `bringup_common.imu_standstill_gate_node`)가
    바퀴가 서 있으면 IMU 를 막는다. 바퀴 정지 분산(1e-9)만으로는 process noise 때문에 자이로 영점 오차가 섞여 정지 중 -6°/h 흘렀다 (2026-11-20).
    다른 모델 EKF 도 IMU 회전 속도를 쓰지만 아직 막지 않는다. 넣을 때는 런치에 노드를 추가하고 imu0 를 바꾼다.
+8. **주행 BT 와 복구 동작**: Jazzy bt_navigator 는 `navigate_to_pose.bt_xml_filename` 을 읽지 않는다. BT 는 반드시 `default_nav_to_pose_bt_xml`·`default_nav_through_poses_bt_xml` 로 준다
+   (예전 `~/ros2_ws/...` 경로는 무시돼 Nav2 기본 BT 의 Spin 1.57 rad·BackUp 0.3 m 복구가 돌았고, H 가 후진하다 뒤쪽 안테나가 부서졌다).
+   EDU 를 뺀 모든 모델은 `behavior_trees/navigate_*_w_replanning_and_recovery.xml`(기본 BT 에서 Spin·BackUp 제거: costmap 초기화·대기만)을 쓴다. EDU 는 `_edu.xml`(BackUp 만 제거).
+   H·MH·M·S·SM collision_monitor 는 정지(stop) 다각형과 감속 다각형을 따로 둔다 (H 만 라이다 자기검출 없음을 실기 확인, M·S·SM 은 미검증).
+   H footprint 는 뒤쪽 안테나(7 cm)까지 넣어 뒤 끝이 -0.504 m 다. 장착물이 차체 밖으로 나오면 footprint 와 정지 다각형을 같이 늘린다.

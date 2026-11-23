@@ -10,11 +10,13 @@ bt_navigator:
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
-      bt_xml_filename: "/home/tetra/ros2_ws/src/tetra_navigation2/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
 
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
-      bt_xml_filename: "/home/tetra/ros2_ws/src/tetra_navigation2/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
+    # 복구 중 회전(Spin)·후진(BackUp)을 하지 않는 TETRA BT (behavior_trees/ 머리말 참고). Jazzy 는 navigator 별
+    # bt_xml_filename 을 읽지 않으므로 반드시 이 두 키로 준다 (없으면 Nav2 기본 BT 의 0.3 m 후진이 돈다)
+    default_nav_to_pose_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
 
     use_feedback: true
     
@@ -86,7 +88,9 @@ local_costmap:
       width: 10 #8
       height: 10 #8
       resolution: 0.05
-      footprint: "[[0.434,0.434], [-0.434,0.434], [-0.434,-0.434], [0.434,-0.434]]"
+      # 뒤쪽 안테나가 차체 뒤로 7 cm 튀어나와 뒤 끝을 -0.504 m 로 둔다 (폭은 모르므로 뒷면 전체). 예전 0.434 정사각형은 안테나를 빼서
+      # 후진 복구가 "뒤에 공간 있음"으로 보고 안테나를 장애물에 밀어 넣었다
+      footprint: "[[0.434,0.434], [-0.504,0.434], [-0.504,-0.434], [0.434,-0.434]]"
       plugins: ["obstacle_layer", "stvl_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -193,7 +197,9 @@ global_costmap:
       height: 15
       global_frame: map
       robot_base_frame: base_footprint
-      footprint: "[[0.434,0.434], [-0.434,0.434], [-0.434,-0.434], [0.434,-0.434]]"
+      # 뒤쪽 안테나가 차체 뒤로 7 cm 튀어나와 뒤 끝을 -0.504 m 로 둔다 (폭은 모르므로 뒷면 전체). 예전 0.434 정사각형은 안테나를 빼서
+      # 후진 복구가 "뒤에 공간 있음"으로 보고 안테나를 장애물에 밀어 넣었다
+      footprint: "[[0.434,0.434], [-0.504,0.434], [-0.504,-0.434], [0.434,-0.434]]"
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -323,7 +329,56 @@ collision_monitor:
     base_shift_correction: True
     stop_pub_timeout: 2.0
 
-    polygons: ["VelocityPolygonStop"]
+    # 예전에는 감속(slowdown 50 %) 다각형 하나뿐이라 라이다에 장애물이 보여도 한 번도 서지 않고 느리게 밀고 들어갔다
+    # (복구 후진으로 뒤쪽 안테나 파손). MH 처럼 짧은 정지 다각형을 따로 두고, 감속 다각형은 예전 그대로 둔다.
+    # 정지 다각형 끝 = 발자국(앞 0.434 m, 뒤 0.504 m: 안테나 7 cm) + 최악 정지거리 + 0.1 m 여유. 정지거리는 MH 와 같은 식(지연 0.238 s + v^2/(2*1.5) + v*0.025 s,
+    # H 휠드라이버 정지 램프는 아직 실측 안 함): v 0.15 -> 0.05 m, 0.45 -> 0.19 m, 1.0 -> 0.60 m, 후진 0.3 -> 0.11 m.
+    # 제자리 회전: 안테나 쪽 뒤 모서리(-0.504, ±0.434)가 쓸고 가는 반경 0.665 m + 3.5 cm 를 감싸는 팔각형 (앞뒤·좌우 0.70 m).
+    # 회전 다각형 안에 장애물이 있으면 제자리 회전을 멈추고, 그 자리에서 대기·재시도 뒤 목표가 실패로 끝난다.
+    # 도킹·언도킹은 docking_server 가 cmd_vel_nav2 로 바로 보내 이 다각형을 거치지 않는다. 웹 조그(cmd_vel_manual)도 거치지 않는다.
+    polygons: ["VelocityPolygonHalt", "VelocityPolygonStop"]
+    VelocityPolygonHalt:
+      type: "velocity_polygon"
+      action_type: "stop"
+      min_points: 6
+      visualize: True
+      enabled: True
+      polygon_pub_topic: "velocity_polygon_stop"
+      velocity_polygons: ["rotation", "forward_creep", "forward_slow", "forward_fast", "backward"]
+      holonomic: false
+      rotation:
+        points: "[[0.70, 0.29], [0.29, 0.70], [-0.29, 0.70], [-0.70, 0.29], [-0.70, -0.29], [-0.29, -0.70], [0.29, -0.70], [0.70, -0.29]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      # 목표 근처 저속 접근(min_approach_linear_velocity 0.05)은 벽 앞 12 cm 까지 들어갈 수 있게 짧게 둔다
+      forward_creep:
+        points: "[[0.55, 0.45], [0.55, -0.45], [-0.52, -0.45], [-0.52, 0.45]]"
+        linear_min: 0.02
+        linear_max: 0.15
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_slow:
+        points: "[[0.75, 0.45], [0.75, -0.45], [-0.52, -0.45], [-0.52, 0.45]]"
+        linear_min: 0.15
+        linear_max: 0.45
+        theta_min: -2.0
+        theta_max: 2.0
+      forward_fast:
+        points: "[[1.15, 0.45], [1.15, -0.45], [-0.52, -0.45], [-0.52, 0.45]]"
+        linear_min: 0.45
+        linear_max: 2.0
+        theta_min: -2.0
+        theta_max: 2.0
+      # 후진은 Nav2 가 더 이상 하지 않지만(RPP allow_reversing 끔, BT 에서 BackUp 제거) 들어오면 뒤 0.72 m(안테나 끝 + 21 cm) 안에서 선다.
+      # 좌우는 회전 반경만큼 넓혀 후진하며 도는 동안 뒤쪽 모서리(안테나)가 쓸고 가는 자리도 본다
+      backward:
+        points: "[[0.45, 0.70], [0.45, -0.70], [-0.72, -0.70], [-0.72, 0.70]]"
+        linear_min: -2.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
     VelocityPolygonStop:
       type: "velocity_polygon"
       action_type: "slowdown" #"stop"
@@ -434,6 +489,10 @@ docking_server:
       external_detection_rotation_yaw: 0.0
       # 태그면 -> 도킹을 마친 base_link 위치. 실측(2026-11-18): 충전 중 base_link-태그 0.725 m, 도킹 시험에서 접점이 0.717 m 에서 붙었다
       # (추정값 0.68 은 도크 자세가 충전기 안쪽 4 cm 라 접점이 먼저 붙어 끝났다). 미세 조정은 관리자 설정의 도킹 영점
+      # H 기준값(2026-11-23, 관리자 도킹 영점 0/0/0 으로 정확히 붙은 상태에서 충전 접점 docking_status 3, 240 샘플 평균):
+      #   도킹 완료 base_link -> 태그 x 0.718 m, y -0.025 m, z 0.139 m, 도크 축 각도 -0.88 deg.
+      # 다른 H 는 이 파라미터와 영점 0 을 그대로 쓴다. 충전기·카메라 장착이 달라 어긋나면, 충전 중 같은 값을 재서
+      # 기준값과의 차이만큼 관리자 설정의 도킹 영점(앞뒤·좌우 mm, 각도 deg)으로 맞춘다. 이 yaml 값은 바꾸지 않는다
       external_detection_translation_x: -0.72
       external_detection_translation_y: 0.0
       filter_coef: 0.1

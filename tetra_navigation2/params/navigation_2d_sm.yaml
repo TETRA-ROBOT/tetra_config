@@ -12,6 +12,10 @@ bt_navigator:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+    # 복구 중 회전(Spin)·후진(BackUp)을 하지 않는 TETRA BT (behavior_trees/ 머리말 참고). Jazzy 는 navigator 별
+    # bt_xml_filename 을 읽지 않으므로 반드시 이 두 키로 준다 (없으면 Nav2 기본 BT 의 0.3 m 후진이 돈다)
+    default_nav_to_pose_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "$(find-pkg-share tetra_navigation2)/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
     
     use_feedback: true
     
