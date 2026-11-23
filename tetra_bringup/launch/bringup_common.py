@@ -82,6 +82,24 @@ def joystick_node() -> Node:
     )
 
 
+# 관제 API 가 /ros/cam 으로 이 포트의 스트림을 중계하고, /ros/isValidCam 은 이 노드가 떠 있어야 메뉴에 카메라 버튼을 띄운다
+WEB_VIDEO_SERVER_PORT = 8080
+
+
+def web_video_server_node() -> Node:
+    """카메라 영상을 웹 관제에 MJPEG 로 내준다. 보는 사람이 있을 때만 인코딩한다.
+
+    예전에는 모델 launch 마다 따로 적어 H·S·SM 에는 빠져 있었고(메뉴에 카메라 버튼이 안 보임),
+    MH 는 8081 로 띄워 API(8080)가 영상을 못 받았다.
+    """
+    return Node(
+        package='web_video_server',
+        executable='web_video_server',
+        output='screen',
+        parameters=[{'quality': 1, 'port': WEB_VIDEO_SERVER_PORT}],
+    )
+
+
 def rosbridge_nodes(max_message_size: Optional[int] = None) -> List[Node]:
     """rosbridge 웹소켓(9090)과 rosapi.
 

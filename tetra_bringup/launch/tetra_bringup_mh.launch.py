@@ -23,6 +23,7 @@ from bringup_common import (  # noqa: E402
     robot_state_publisher_node,
     rosbridge_nodes,
     use_sim_time_argument,
+    web_video_server_node,
 )
 from launch.conditions import IfCondition
 
@@ -112,16 +113,6 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('use_keepalive_relay')),
     )
 
-    # web_video_server_node 
-    web_video_server_node = Node(
-        package='web_video_server', 
-        executable='web_video_server',
-        output='screen',
-        parameters=[
-            {"quality": 1,
-             "port": 8081}
-        ]
-    )
 
     gscam_config = LaunchConfiguration('thermal_pipeline')
     # GStreamer 
@@ -262,7 +253,7 @@ def generate_launch_description():
             rosbridge_server,
             rosapi_node,
             keepalive_relay,
-            web_video_server_node,
+            web_video_server_node(),
             gscam_node,
 			
             front_lidar,

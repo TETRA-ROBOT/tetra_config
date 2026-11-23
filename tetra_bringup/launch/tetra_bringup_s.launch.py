@@ -22,6 +22,7 @@ from bringup_common import (  # noqa: E402
     rosbridge_nodes,
     usb_camera_with_apriltag,
     use_sim_time_argument,
+    web_video_server_node,
 )
 
 
@@ -133,5 +134,7 @@ def generate_launch_description():
 		#	[get_package_share_directory('livox_ros_driver2'), '/launch_ROS2/MID360_launch.py']),
 		#),
         
+            # 웹 관제 카메라 영상 (bringup_common.web_video_server_node)
+            web_video_server_node(),
         ]
     )

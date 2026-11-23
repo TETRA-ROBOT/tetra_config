@@ -23,6 +23,7 @@ from bringup_common import (  # noqa: E402
     robot_state_publisher_node,
     rosbridge_nodes,
     use_sim_time_argument,
+    web_video_server_node,
 )
 
 
@@ -112,15 +113,6 @@ def generate_launch_description():
         }]
     )
     
-    # web_video_server_node 
-    web_video_server_node = Node(
-        package='web_video_server', 
-        executable='web_video_server',
-        output='screen',
-        parameters=[
-            {"quality": 1}
-        ]
-    )
     
     # create and return launch description object
     return LaunchDescription(
@@ -142,7 +134,7 @@ def generate_launch_description():
             pointcloud_to_scan_node,
             # 라이다 도킹 마커(스테이션의 V 자 홈) 검출. 관제 옵션 dock_detection 이 lidar 일 때 AprilTag 대신 쓴다 (params/vdock_edu.yaml)
             lidar_dock_detector_node('vdock_edu.yaml'),
-            web_video_server_node,
+            web_video_server_node(),
 
         # apriltag_ros
 		# 공용 apriltag_detection.launch.py 는 /camera/image_raw 를 구독해 EDU 의 RealSense 컬러 영상을 받지 못한다.

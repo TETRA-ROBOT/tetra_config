@@ -22,6 +22,7 @@ from bringup_common import (  # noqa: E402
     robot_state_publisher_node,
     rosbridge_nodes,
     use_sim_time_argument,
+    web_video_server_node,
 )
 
 
@@ -167,5 +168,7 @@ def generate_launch_description():
             # 충전 도킹 태그는 전방 RealSense 컬러 영상에서 찾는다 (navigation_h.yaml docking_server).
             # H 에는 usb_cam 이 없어 예전 usb_camera_apriltag_include()는 발행자 없는 /camera/image_raw 만 구독했다
             realsense_apriltag_node(),
+            # 웹 관제 카메라 영상 (bringup_common.web_video_server_node)
+            web_video_server_node(),
         ]
     )

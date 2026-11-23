@@ -22,6 +22,7 @@ from bringup_common import (  # noqa: E402
     robot_state_publisher_node,
     rosbridge_nodes,
     use_sim_time_argument,
+    web_video_server_node,
 )
 
 
@@ -228,5 +229,7 @@ def generate_launch_description():
 		# ),
 
         
+            # 웹 관제 카메라 영상 (bringup_common.web_video_server_node)
+            web_video_server_node(),
         ]
     )

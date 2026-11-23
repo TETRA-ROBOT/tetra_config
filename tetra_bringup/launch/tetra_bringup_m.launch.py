@@ -26,6 +26,7 @@ from bringup_common import (  # noqa: E402
     rosbridge_nodes,
     usb_camera_with_apriltag,
     use_sim_time_argument,
+    web_video_server_node,
 )
 
 
@@ -93,15 +94,6 @@ def generate_launch_description():
     rosbridge_server, rosapi_node = rosbridge_nodes(max_message_size=10000000)
 
 
-    # web_video_server_node 
-    web_video_server_node = Node(
-        package='web_video_server', 
-        executable='web_video_server',
-        output='screen',
-        parameters=[
-            {"quality": 1}
-        ]
-    )
     
     
     # create and return launch description object
@@ -131,7 +123,7 @@ def generate_launch_description():
             robot_pose_publisher_node(),
             rosbridge_server,
             rosapi_node,            
-            web_video_server_node,
+            web_video_server_node(),
             
             # 후면 USB 카메라 + AprilTag. 후면 usb_cam 은 왜곡이 커서 태그 모서리를 보정해서 쓴다 (bringup_common.py)
             *usb_camera_with_apriltag(undistort_corners=True),
