@@ -464,8 +464,9 @@ docking_server:
     dock_prestaging_tolerance: 0.15
     dock_backwards: false
 
-    # API 는 충전 도킹·언도킹을 tetra_charging_dock 으로 요청한다 (도킹 인스턴스는 API 가 지도의 도킹 위치로 reload_database 한다)
-    dock_plugins: ['tetra_charging_dock']
+    # API 는 충전 도킹·언도킹을 tetra_charging_dock 으로, 태스크의 싣기(LOAD)·내리기(UNLOAD) 위치는 tetra_lift_load_dock·tetra_lift_unload_dock 으로
+    # 요청한다 (도킹 인스턴스는 API 가 지도의 도킹·LOAD·UNLOAD 위치로 reload_database 한다)
+    dock_plugins: ['tetra_charging_dock', 'tetra_lift_load_dock', 'tetra_lift_unload_dock']
 
     tetra_charging_dock:
       plugin: 'tetra_docking::TetraChargingDock'
@@ -522,6 +523,72 @@ docking_server:
       camera_info_topic: "/camera1/color/camera_info"
       tag_size: 0.1
 
+    # 리프트 포트: 로봇 앞쪽에 있는 ㄷ 자 받침대. 태그 대신 라이다(scan_merge)로 두 다리 안쪽 면을 찾아 그 사이로 곧게 들어가
+    # 지도에 등록한 LOAD 위치(= 짐을 뜨는 자리, 포트 축 위)에 서면 리프트를 올린다 (tetra_util tetra_docking/src/lift_pocket.cpp).
+    # 다리 사이에서는 도킹 서버 costmap 충돌 검사 대신 플러그인이 스캔으로 옆·앞 여유를 보고, 틀어진 채 입구를 넘으려 하면 멈춘다.
+    # 포트 치수(pocket_inner_width·pocket_leg_length·pocket_insert_depth)는 현장 포트를 실측해 넣는다. 아래는 H 미검증 자리값이다
+    tetra_lift_load_dock:
+      plugin: 'tetra_docking::TetraLiftDock'
+      detection_source: "lidar"
+      pocket_scan_topic: "/scan_merge"
+      pocket_frame: "odom"
+      # 다리 안쪽 면 사이 간격 (m). 로봇 폭 0.868 m + 양옆 여유. 실측
+      pocket_inner_width: 1.00
+      # 다리 길이: 입구(다리 앞 끝)에서 안쪽 끝까지 (m). 실측
+      pocket_leg_length: 1.00
+      # 입구에서 짐을 뜨는 자리(base_link)까지 축 방향 거리 (m). 짐 가운데 아래에 로봇 리프트 가운데가 오게 실측
+      pocket_insert_depth: 0.50
+      # 등록 위치(AMCL) 기준 다리를 찾는 띠 반폭. 첫 검출은 이 두 배로 찾는다
+      pocket_band_half_width: 0.10
+      pocket_max_width_error: 0.06
+      pocket_max_yaw_change: 0.35
+      # 외곽 꼭짓점이 입구를 넘을 때 다리 안쪽 면까지 남아야 하는 거리. 모자라면 다리에 닿기 전에 멈춘다
+      pocket_entry_margin: 0.03
+      pocket_entry_lookahead: 0.03
+      # 들어가는 동안 스캔 점과 외곽 사이 최소 여유 (옆·앞). 모자라면 멈춘다
+      pocket_min_side_clearance: 0.03
+      pocket_min_front_clearance: 0.05
+      pocket_lost_timeout: 2.0
+      pocket_filter_coef: 0.3
+      # 외곽: local_costmap footprint 와 같다 (뒤 안테나 포함 -0.504)
+      footprint_front: 0.434
+      footprint_back: -0.504
+      footprint_half_width: 0.434
+      # 도착 판정: 포트 축 깊이가 insert_depth 에서 이 값 안이면 도착
+      docking_threshold: 0.02
+      # staging = 짐 뜨는 자리에서 1.4 m 뒤 (입구 앞 약 0.45 m 에서 축에 맞춰 곧게 들어간다). 언도킹도 그만큼 곧게 후진해 포트를 빠져나온다
+      staging_x_offset: -1.4
+      staging_yaw_offset: 0.0
+      use_external_detection_pose: false
+      # 보드 CN 코드(conveyor_auto_move_cmd): H 리프트는 2 가 최대 높이, 0 이 원점
+      lift_action_mode: 2
+
+    tetra_lift_unload_dock:
+      plugin: 'tetra_docking::TetraLiftDock'
+      detection_source: "lidar"
+      pocket_scan_topic: "/scan_merge"
+      pocket_frame: "odom"
+      pocket_inner_width: 1.00
+      pocket_leg_length: 1.00
+      pocket_insert_depth: 0.50
+      pocket_band_half_width: 0.10
+      pocket_max_width_error: 0.06
+      pocket_max_yaw_change: 0.35
+      pocket_entry_margin: 0.03
+      pocket_entry_lookahead: 0.03
+      pocket_min_side_clearance: 0.03
+      pocket_min_front_clearance: 0.05
+      pocket_lost_timeout: 2.0
+      pocket_filter_coef: 0.3
+      footprint_front: 0.434
+      footprint_back: -0.504
+      footprint_half_width: 0.434
+      docking_threshold: 0.02
+      staging_x_offset: -1.4
+      staging_yaw_offset: 0.0
+      use_external_detection_pose: false
+      lift_action_mode: 0
+
     controller:
       # 관제가 도킹 목표마다 관리자 설정(도킹 속도·감속 시작 거리)으로 v_linear_max·v_linear_min·slowdown_radius 를 덮어쓴다
       # (TetraSingleManagement lib/robot/services/dock-speed.ts). 여기 값은 관제 없이 도킹하거나 재시작 뒤 첫 언도킹에 쓴다
@@ -538,5 +605,9 @@ docking_server:
       transform_tolerance: 0.1
       projection_time: 1.0
       simulation_time_step: 0.1
-      # 충전기 본체가 장애물로 잡히므로 도크 자세 0.45 m 안에서는 충돌 검사에서 뺀다 (MH 와 같음)
-      dock_collision_threshold: 0.45
+      # 도크 자세 이 거리 안에서는 costmap 충돌 검사를 하지 않는다. 충전기는 0.45 m 면 됐지만(MH 와 같음), 리프트 포트는
+      # 로봇이 다리 사이로 들어가 다리가 inflation 안에 들어오므로 입구를 넘는 순간(로봇 중심이 짐 뜨는 자리에서
+      # pocket_insert_depth + footprint_front 앞)부터 빼야 한다: 0.50 + 0.434 + 여유 0.1.
+      # 그 안은 플러그인의 스캔 여유 검사(포트)·범퍼 정지(충전기)가 맡는다. Jazzy 는 실행 중 이 값을 못 바꿔 도크 종류마다 따로 둘 수 없다.
+      # pocket_insert_depth 를 바꾸면 이 값도 같이 맞춘다
+      dock_collision_threshold: 1.05
