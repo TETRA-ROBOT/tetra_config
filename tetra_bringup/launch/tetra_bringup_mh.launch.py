@@ -5,7 +5,9 @@ import sys
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+import subprocess
+
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, GroupAction, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
@@ -25,10 +27,29 @@ from bringup_common import (  # noqa: E402
     use_sim_time_argument,
     web_video_server_node,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 
 
 # this is the function launch  system will look for
+# 팔이 있을 때 joint_state_publisher 에 줄 몸체 URDF (팔 관절이 없어 리프트·팬틸트만 0 으로 낸다).
+# joint_state_publisher 는 URDF 파일 경로를 인자로 받으면 /robot_description(몸체+팔) 대신 그 파일을 쓴다
+BODY_URDF_PATH = '/tmp/tetra_mh_body.urdf'
+
+
+def _body_only_joint_state_publisher(context, *args, **kwargs):
+    xacro_file = os.path.join(get_package_share_directory('tetra_description'), 'urdf', 'tetra_mh', 'tetra.xacro')
+    with open(BODY_URDF_PATH, 'w') as urdf_file:
+        urdf_file.write(subprocess.run(['xacro', xacro_file], check=True, capture_output=True, text=True).stdout)
+    return [Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        output='screen',
+        arguments=[BODY_URDF_PATH],
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+    )]
+
+
 def generate_launch_description():
     front_lidar_hostname = DeclareLaunchArgument('front_lidar_hostname', default_value='192.168.0.1')
     rear_lidar_hostname = DeclareLaunchArgument('rear_lidar_hostname', default_value='192.168.0.2')
@@ -49,6 +70,10 @@ def generate_launch_description():
     autonics_ip = DeclareLaunchArgument('autonics_ip', default_value='192.168.0.200')
     autonics_uart = DeclareLaunchArgument('autonics_uart', default_value='/dev/ai_camera')
     rb10_ip = DeclareLaunchArgument('rb10_ip', default_value='10.0.2.7')
+    # Autonics 카메라 장착 위치 (로봇팔이 있을 때만 뜻이 있다. 팔이 없으면 팬틸트 위): gripper | pantilt | none
+    autonics_camera_mount = DeclareLaunchArgument('autonics_camera_mount', default_value='gripper')
+    autonics_gripper_xyz = DeclareLaunchArgument('autonics_gripper_xyz', default_value='0 0 0.10')
+    autonics_gripper_rpy = DeclareLaunchArgument('autonics_gripper_rpy', default_value='0 0 -1.5708')
     herkulex_port = DeclareLaunchArgument('herkulex_port', default_value='/dev/ttyS2')
 
     # tetra_wheel_driver Board
@@ -97,8 +122,12 @@ def generate_launch_description():
     
     # tetra_URDF
     use_sim_time = use_sim_time_argument()
-    jsp_node = joint_state_publisher_node()
-    rsp_node = robot_state_publisher_node(xacro_folder='tetra_mh')
+    # 로봇팔이 있으면(use_rb10) rb10_arm.launch.py 가 몸체+팔 URDF 로 robot_state_publisher 를 띄운다. 여기서도 띄우면 같은 이름 노드가 둘이 된다
+    rsp_node = GroupAction([robot_state_publisher_node(xacro_folder='tetra_mh')], condition=UnlessCondition(LaunchConfiguration('use_rb10')))
+    # joint_state_publisher 는 URDF 의 움직이는 관절을 모두 0 으로 낸다. 리프트·팬틸트는 관절 값을 내는 드라이버가 없어 이 값으로 TF 를 잇는다.
+    # 팔이 있으면 팔 관절은 joint_state_broadcaster 가 내므로, 몸체 URDF 만 넘겨 팔 관절을 0 으로 덮어쓰지 않게 한다
+    jsp_node = GroupAction([joint_state_publisher_node()], condition=UnlessCondition(LaunchConfiguration('use_rb10')))
+    jsp_body_node = OpaqueFunction(function=_body_only_joint_state_publisher, condition=IfCondition(LaunchConfiguration('use_rb10')))
     
     # rosbridge_server + rosapi
     rosbridge_server, rosapi_node = rosbridge_nodes(max_message_size=10000000)
@@ -236,6 +265,9 @@ def generate_launch_description():
             autonics_ip,
             autonics_uart,
             rb10_ip,
+            autonics_camera_mount,
+            autonics_gripper_xyz,
+            autonics_gripper_rpy,
             herkulex_port,
             # 드라이버 노드보다 먼저 와야 노드가 스캔한 포트를 받는다
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
@@ -248,6 +280,7 @@ def generate_launch_description():
             use_sim_time,
             rsp_node,
             jsp_node,
+            jsp_body_node,
             # 웹 관제가 로봇 위치로 쓰는 /footprint 를 TF(map/odom → base_footprint)에서 발행
             robot_pose_publisher_node(),
             rosbridge_server,
@@ -297,19 +330,26 @@ def generate_launch_description():
                     "nic": LaunchConfiguration('autonics_interface'),
                     "listen_ip": LaunchConfiguration('autonics_ip'),
                     "uart": LaunchConfiguration('autonics_uart'),
+                    # 예전 MH 브링업(~/ros2_ws)과 같은 값. 드라이버 기본 best_effort 면 web_video_server·관제(reliable 구독)가 영상을 못 받는다
+                    "qos_reliability": "reliable",
+                    "rgb_exposure_us": "30000",
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
 
-            # RB10 manipulator
+            # RB10 manipulator: 몸체+팔 URDF(tetra_description tetra_mh/tetra_rb10.xacro)로 robot_state_publisher·ros2_control·MoveIt.
+            # 팔 패키지는 프로젝트 밖(~/rainbow)이라 robot.env TETRA_EXTRA_ROS_SETUP 으로 불러와야 한다
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    PathJoinSubstitution([FindPackageShare('rbpodo_moveit_config'), 'launch', 'test.launch.py'])),
+                    PathJoinSubstitution([FindPackageShare('tetra_bringup'), 'launch', 'rb10_arm.launch.py'])),
                 launch_arguments={
                     "model_id": "rb10_1300e",
                     "use_fake_hardware": "false",
                     "cb_simulation": "Real",
                     "robot_ip": LaunchConfiguration('rb10_ip'),
+                    "autonics_camera_mount": LaunchConfiguration('autonics_camera_mount'),
+                    "autonics_gripper_xyz": LaunchConfiguration('autonics_gripper_xyz'),
+                    "autonics_gripper_rpy": LaunchConfiguration('autonics_gripper_rpy'),
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_rb10')),
             ),
