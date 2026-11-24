@@ -50,7 +50,7 @@ def robot_state_publisher_node(
 ) -> Node:
     """URDF 를 xacro 로 만들어 TF 를 발행한다.
 
-    xacro_folder: tetra_description/urdf 아래 모델 폴더 ('tetraDS', 'tetra_mh' 등). None 이면 urdf/tetra.xacro (M·S)
+    xacro_folder: tetra_description/urdf 아래 모델 폴더 ('tetraDS', 'tetra_s', 'tetra_mh' 등). None 이면 urdf/tetra.xacro (M 몸체)
     xacro_arguments: xacro 인자 {이름: 값}. 값은 문자열이나 LaunchConfiguration (예: {'m_rear_sonar': LaunchConfiguration('use_ultrasonic')})
     description_as_string: xacro 결과를 문자열로 못박는다. 그냥 두면 launch 가 YAML 로 읽으려 해서, URDF 주석에 ': ' 가 들어가면
         'Unable to parse ... as yaml' 로 브링업 전체가 뜨지 않는다 (EDU)

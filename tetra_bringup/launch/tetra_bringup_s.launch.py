@@ -76,7 +76,7 @@ def generate_launch_description():
     # tetra_URDF
     use_sim_time = use_sim_time_argument()
     jsp_node = joint_state_publisher_node()
-    rsp_node = robot_state_publisher_node()
+    rsp_node = robot_state_publisher_node(xacro_folder='tetra_s')
     
     # rosbridge_server + rosapi
     rosbridge_server, rosapi_node = rosbridge_nodes()
