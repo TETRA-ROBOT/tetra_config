@@ -76,7 +76,8 @@ def generate_launch_description():
     rb10_ip = DeclareLaunchArgument('rb10_ip', default_value='10.0.2.7')
     # Autonics 카메라 장착 위치 (로봇팔이 있을 때만 뜻이 있다. 팔이 없으면 팬틸트 위): gripper | pantilt | none
     autonics_camera_mount = DeclareLaunchArgument('autonics_camera_mount', default_value='gripper')
-    autonics_gripper_xyz = DeclareLaunchArgument('autonics_gripper_xyz', default_value='0 0 0.10')
+    # 팔 끝 플랜지(link6) 기준 카메라 메시 원점: 카메라 중심이 마지막 손목 위쪽(-z) 17.5 cm 에 오는 값 (2026-11-24 실측, tetra_rb10.xacro 설명)
+    autonics_gripper_xyz = DeclareLaunchArgument('autonics_gripper_xyz', default_value='0.0091 -0.0287 -0.1767')
     autonics_gripper_rpy = DeclareLaunchArgument('autonics_gripper_rpy', default_value='0 0 -1.5708')
     herkulex_port = DeclareLaunchArgument('herkulex_port', default_value='/dev/ttyS2')
 

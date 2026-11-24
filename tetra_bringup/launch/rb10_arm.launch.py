@@ -28,7 +28,7 @@ def _arguments() -> list:
         DeclareLaunchArgument('cb_simulation', default_value='Real', description='컨트롤 박스 모드 Real | Simulation'),
         DeclareLaunchArgument('model_id', default_value='rb10_1300e'),
         DeclareLaunchArgument('autonics_camera_mount', default_value='gripper', description='gripper | pantilt | none'),
-        DeclareLaunchArgument('autonics_gripper_xyz', default_value='0 0 0.10', description='link6 기준 카메라 위치 (m)'),
+        DeclareLaunchArgument('autonics_gripper_xyz', default_value='0.0091 -0.0287 -0.1767', description='link6 기준 카메라 메시 원점 (m). 카메라 중심이 손목 위쪽 17.5 cm 에 온다'),
         DeclareLaunchArgument('autonics_gripper_rpy', default_value='0 0 -1.5708', description='link6 기준 카메라 자세 (rad)'),
     ]
 
