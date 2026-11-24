@@ -333,6 +333,10 @@ def generate_launch_description():
                     # 예전 MH 브링업(~/ros2_ws)과 같은 값. 드라이버 기본 best_effort 면 web_video_server·관제(reliable 구독)가 영상을 못 받는다
                     "qos_reliability": "reliable",
                     "rgb_exposure_us": "30000",
+                    # 관제는 카메라 상태·사고 기록 사진을 압축 토픽으로 받는다 (api blackbox/camera-topic.ts: 같은 카메라 폴더의 */compressed).
+                    # 이 드라이버는 보정 영상만 압축해 낸다 → /camera/color/image_rect/compressed
+                    "enable_undistortion": "true",
+                    "use_compressed": "true",
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
