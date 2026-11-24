@@ -76,7 +76,8 @@ def generate_launch_description():
     # tetra_URDF
     use_sim_time = use_sim_time_argument()
     jsp_node = joint_state_publisher_node()
-    rsp_node = robot_state_publisher_node()
+    # 예전에는 인자 없이 불러 M 의 urdf/tetra.xacro(몸체·센서 위치 모두 M)를 냈다. 2D MH 브링업(로봇팔 없음)과 같은 URDF 를 쓴다
+    rsp_node = robot_state_publisher_node(xacro_folder='tetra_mh')
     
     # rosbridge_server + rosapi
     rosbridge_server, rosapi_node = rosbridge_nodes()
