@@ -47,6 +47,10 @@ def _body_only_joint_state_publisher(context, *args, **kwargs):
         output='screen',
         arguments=[BODY_URDF_PATH],
         parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        # Jazzy joint_state_publisher 는 파일을 받아도 /robot_description 을 늘 구독해, robot_state_publisher 가 낸 몸체+팔 URDF 로
+        # 갈아타고 팔 관절을 0 으로 냈다. joint_state_broadcaster 의 실제 값과 번갈아 들어가 팔이 접혔다 폈다 했다 (2026-11-24 실기).
+        # 아무도 내지 않는 토픽으로 돌려 몸체 파일만 쓰게 한다
+        remappings=[('robot_description', 'joint_state_publisher_body_description_unused')],
     )]
 
 

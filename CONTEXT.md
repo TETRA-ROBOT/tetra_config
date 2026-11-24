@@ -59,6 +59,8 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    H footprint 는 뒤쪽 안테나(7 cm)까지 넣어 뒤 끝이 -0.504 m 다. 장착물이 차체 밖으로 나오면 footprint 와 정지 다각형을 같이 늘린다.
 9. **MH + RB10 로봇팔** (`use_rb10:=true`): `tetra_bringup/launch/rb10_arm.launch.py` 가 몸체+팔 URDF(`tetra_description` `tetra_mh/tetra_rb10.xacro`)로
    robot_state_publisher·ros2_control·MoveIt(SRDF `params/rb10/tetra_mh_rb10.srdf`)을 띄운다. 이때 MH 브링업은 자기 robot_state_publisher 를 띄우지 않고,
-   joint_state_publisher 에는 몸체 URDF 만 넘긴다 (팔 관절을 0 으로 덮어써 TF 가 튀지 않게). 예전에는 ~/rainbow test.launch.py 를 include 해 robot_state_publisher 가 둘이었다.
+   joint_state_publisher 에는 몸체 URDF 만 넘긴다 (팔 관절을 0 으로 덮어써 TF 가 튀지 않게).
+   Jazzy joint_state_publisher 는 파일을 받아도 `/robot_description` 을 늘 구독해 몸체+팔 URDF 로 갈아타므로 그 구독을 쓰지 않는 토픽으로 돌린다
+   (안 하면 팔 관절 0 이 실제 값과 번갈아 나가 관제 3D 의 팔이 접혔다 폈다 했다). 예전에는 ~/rainbow test.launch.py 를 include 해 robot_state_publisher 가 둘이었다.
    팔 패키지(rbpodo_*)는 이 레포 밖이라 robot.env `TETRA_EXTRA_ROS_SETUP` 으로 불러온다 (README 3.4).
    Autonics 카메라 장착 위치는 `autonics_camera_mount`(gripper|pantilt|none). 리프트·팬틸트 관절은 값을 내는 드라이버가 없어 joint_state_publisher 의 0 으로 TF 만 잇는다.
