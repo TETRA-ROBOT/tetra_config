@@ -61,7 +61,9 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    예전에는 바퀴 yaw 를 절대값으로 받고 `/odom` 공분산이 0 이라 EKF 가 바퀴 방향을 그대로 따라, 회전 때 미끄럼만큼 지도 바깥 벽이 0.3~0.5 m 어긋나고 이중으로 그려졌다.
    `dual_laser_merger` 는 MH 만 odom 움직임 보정(`fixed_frame: odom`)을 쓰는데 `tolerance` 가 TF 대기 시간이기도 해서 0.01 이면 늦은 EKF TF 마다 합친 스캔을 버렸다 → 0.1(짝짓기 벌점 표준값).
    바퀴 배율 보정(`~/.config/tetra/wheel_odom_scale.txt`, 관리자 "바퀴 오도메트리 보정")은 MH 에서 아직 하지 않았다.
-10. **MH + RB10 로봇팔** (`use_rb10:=true`): `tetra_bringup/launch/rb10_arm.launch.py` 가 몸체+팔 URDF(`tetra_description` `tetra_mh/tetra_rb10.xacro`)로
+10. **MH GPIO 컨트롤러는 기본으로 끈다** (`use_gpio_controller` 기본 false, 2026-11-24). 켜면 `tetra_gpio_controller` 가 출력 0~7 의 0→1 을
+    리프트 L0·L8, 팬 90°·0°, 틸트 80°·0°, 팔 원점·접기 명령으로 쓰고 출력을 0 으로 되돌린다. 웹의 팬틸트 범위·팔 충돌 검사를 거치지 않으니 켤 때 주의.
+11. **MH + RB10 로봇팔** (`use_rb10:=true`): `tetra_bringup/launch/rb10_arm.launch.py` 가 몸체+팔 URDF(`tetra_description` `tetra_mh/tetra_rb10.xacro`)로
    robot_state_publisher·ros2_control·MoveIt(SRDF `params/rb10/tetra_mh_rb10.srdf`)을 띄운다. 이때 MH 브링업은 자기 robot_state_publisher 를 띄우지 않고,
    joint_state_publisher 에는 몸체 URDF 만 넘긴다 (팔 관절을 0 으로 덮어써 TF 가 튀지 않게).
    Jazzy joint_state_publisher 는 파일을 받아도 `/robot_description` 을 늘 구독해 몸체+팔 URDF 로 갈아타므로 그 구독을 쓰지 않는 토픽으로 돌린다

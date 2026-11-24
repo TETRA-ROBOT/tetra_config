@@ -61,7 +61,10 @@ def generate_launch_description():
     rear_lidar_frame = DeclareLaunchArgument('rear_lidar_frame', default_value='laser_link2')
     use_keepalive_relay = DeclareLaunchArgument('use_keepalive_relay', default_value='true')
     use_thermal_camera = DeclareLaunchArgument('use_thermal_camera', default_value='false')
-    use_gpio_controller = DeclareLaunchArgument('use_gpio_controller', default_value='true')
+    # 예전 관제용 GPIO 컨트롤러(tetra_lab tetra_gpio_controller): 출력 0~7 의 0→1 을 리프트 L0·L8, 팬 90°·0°, 틸트 80°·0°, 팔 원점·접기 명령으로 쓰고
+    # 출력을 바로 0 으로 되돌린다. 그래서 웹 GPIO 창의 출력이 켜자마자 꺼졌고, 팬틸트 범위(±80°/±30°)와 팔 몸체 충돌 검사를 거치지 않았다.
+    # 2026-11-24 부터 MH 는 끈다: 팔·리프트·팬틸트는 웹 창과 플랜 모듈 액션으로 움직이고, GPIO 출력은 켠 상태가 유지되는 일반 출력이다
+    use_gpio_controller = DeclareLaunchArgument('use_gpio_controller', default_value='false')
     use_realsense = DeclareLaunchArgument('use_realsense', default_value='true')
     use_herkulex = DeclareLaunchArgument('use_herkulex', default_value='true')
     use_autonics_rgbd = DeclareLaunchArgument('use_autonics_rgbd', default_value='true')
