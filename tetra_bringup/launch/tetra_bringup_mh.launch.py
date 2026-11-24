@@ -107,7 +107,9 @@ def generate_launch_description():
         parameters=[
             {"port": LaunchConfiguration('power_port')},
             {"conveyor_option": False},
-            {"ultrasonic_option": False}
+            {"ultrasonic_option": False},
+            # 리프트(허리) 모터 위치를 /lift_status 로 낸다. 웹 관제 리프트 창의 높이·단계별 높이가 이 값이다
+            {"lift_position_option": True}
         ]
     )
     
