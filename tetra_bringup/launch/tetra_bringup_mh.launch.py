@@ -230,7 +230,10 @@ def generate_launch_description():
             'laser_2_x_offset': 0.0,
             'laser_2_y_offset': 0.0,
             'laser_2_yaw_offset': 0.0,
-            'tolerance': 0.01,
+            # odom 움직임 보정은 스캔 시각의 odom TF 를 이 시간만큼 기다린다. 0.01 이면 EKF TF 가 10~20 ms 늦을 때마다
+            # 'extrapolation into the future' 로 합친 스캔을 버려 /scan_merge 가 15 Hz → 12 Hz 로 줄었다 (2026-11-24 맵핑 중 초당 1.6 번).
+            # 같은 값이 앞·뒤 스캔 짝짓기 벌점(ApproximateTime age penalty)이라 표준 기본값 0.1 로 둔다
+            'tolerance': 0.1,
             'queue_size': 1000,
             'angle_increment': 0.005818,  # 0.333 deg = SICK TiM5xx 해상도. 0.001 이면 6284칸 중 85% 가 inf 라 AMCL max_beams 60 이 유효 빔 7개만 쓴다
             'scan_time': 0.067,
