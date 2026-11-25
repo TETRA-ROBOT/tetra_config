@@ -71,11 +71,12 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    팔 패키지(rbpodo_*)는 이 레포 밖이라 robot.env `TETRA_EXTRA_ROS_SETUP` 으로 불러온다 (README 3.4).
    Autonics 카메라 장착 위치는 `autonics_camera_mount`(gripper|pantilt|none). 리프트·팬틸트 관절은 값을 내는 드라이버가 없어 joint_state_publisher 가 낸다: `source_list: ['/module_joint_states']` 로 관제 API 가 `/lift_status`·서보 상태로 10 Hz 로 보내는 실제 값을 받고(TetraSingleManagement `module-joint-states.ts`), 받기 전·API 가 없을 때는 0 이다.
 12. **RB10 팔 카메라 장애물 (MoveIt octomap)** (2026-11-25): `rb10_arm.launch.py` 의 `use_arm_perception`(기본 true)이 `params/rb10/sensors_3d.yaml` 을
-    MoveItConfigsBuilder `.sensors_3d()` 로 move_group 에 넣는다. PointCloudOctomapUpdater: **몸체 RealSense 만** 쓴다 (`sensors:` 목록). 팔 끝 Autonics(`arm_camera`, `/camera/depth/points`)는 설정만 남기고 목록에서 뺐다 (아래).
+    MoveItConfigsBuilder `.sensors_3d()` 로 move_group 에 넣는다. PointCloudOctomapUpdater 두 개: 몸체 RealSense(늘 켜짐)와 팔 끝 Autonics(`arm_camera`). 팔 카메라는 `topic_tools mux`(`arm_camera_octomap_mux`, 처음 `__none`)의 출력 `/camera/depth/points_octomap` 만 받는다.
+    관제 관리자 옵션 `use_arm_camera_obstacles`(기본 0)를 켜면 API 가 `~/select` 로 `/camera/depth/points` 를 고르고, 끄면 `__none` + `/clear_octomap` (재시작 없음, TetraSingleManagement `arm-camera-obstacles.ts`).
     RealSense `/camera1/depth/color/points`(rs_launch `pointcloud.enable:=true` 필요, 비정렬, subsample 16).
-    팔 카메라를 뺀 이유 (실기 2026-11-25): ToF 가 렌즈 가까이에 거짓 점을 낸다. 0.2 m 안이 장애물 점의 58 % 였고, 0.25 m 안을 거르는 PassThrough 를 넣어도
+    팔 카메라를 기본으로 끈 이유 (실기 2026-11-25): ToF 가 렌즈 가까이에 거짓 점을 낸다. 0.2 m 안이 장애물 점의 58 % 였고, 0.25 m 안을 거르는 PassThrough 를 넣어도
     접은 팔 앞 0.27~0.5 m(아무것도 없음)에 점이 뭉쳐 지도를 비우고 2초 뒤 검사해도 접기 → 홈이 26자세 중 20개 넘게 막혔다. 집은 물건도 늘 장애물로 보여 들고 다니는 동안 팔이 못 움직인다.
-    드라이버 ToF 필터(`conf_filter_enable` 등 README 권장값)는 켜 보니 점이 프레임당 1만 개 넘게 늘어 더 나빠졌다. 다른 카메라로 시험할 때 목록에 다시 넣는다. `octomap_frame: odom`(로봇이 움직여도 장애물이 끌려가지 않음), 해상도 0.05 m, max_range 2 m.
+    드라이버 ToF 필터(`conf_filter_enable` 등 README 권장값)는 켜 보니 점이 프레임당 1만 개 넘게 늘어 더 나빠졌다. 센서가 좋아지면 관리자 옵션으로 켠다. `octomap_frame: odom`(로봇이 움직여도 장애물이 끌려가지 않음), 해상도 0.05 m, max_range 2 m.
     자기 몸 거르기: 업데이터가 move_group 이 아는 URDF(몸체+팔) 충돌 모양마다 `padding_scale`·`padding_offset`(팔 카메라 0.06, RealSense 0.05 m)만큼 키워 그 안의 점과 그림자를 버린다.
     걸러진 점군은 `/move_group/{arm,body}_camera/filtered_points` 로 RViz 에서 본다. 예전에는 리프트·팬틸트 TF 가 늘 0 이라 실제 높이·각도와 달라 몸통·머리를 자기 몸으로 걸러 내지 못했고, 리프트 3 cm 차이로 팔 접기·홈 길이 막혔다 (2026-11-25). 지금은 11번의 실제 값으로 TF 를 낸다. API 가 내려가 있으면 다시 0 이 될 수 있다.
     octomap 은 planning scene 의 world 에 `<octomap>` 으로 들어가 `/check_state_validity`(관제 API 팔 충돌 검사)가 같이 본다 → API 409 `obstacle`.

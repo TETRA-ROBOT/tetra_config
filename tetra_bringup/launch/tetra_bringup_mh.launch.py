@@ -272,6 +272,21 @@ def generate_launch_description():
             "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
             LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
     )
+    # 팔 카메라 점군을 MoveIt 장애물(octomap)에 넣을지 관제 관리자 옵션 use_arm_camera_obstacles 로 고른다 (기본 끔).
+    # move_group 카메라 목록은 뜰 때 정해지므로, 팔 카메라는 이 mux 출력만 받게 하고 API 가 ~/select 로 '/camera/depth/points' ↔ '__none' 을 바꾼다
+    # (TetraSingleManagement lib/robot/modules/arm-camera-obstacles.ts). 처음은 '__none' = 팔 카메라 장애물 없음. lazy: 받는 쪽이 없으면 구독도 안 한다
+    arm_camera_octomap_mux = Node(
+        package='topic_tools',
+        executable='mux',
+        name='arm_camera_octomap_mux',
+        output='screen',
+        arguments=['/camera/depth/points_octomap', '/camera/depth/points'],
+        parameters=[{'initial_topic': '__none', 'lazy': True}],
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
+            LaunchConfiguration('autonics_pointcloud'), "' == 'true' and '",
+            LaunchConfiguration('use_rb10'), "' == 'true'"])),
+    )
 
     front_lidar = sick_lidar('front', '/scan_front')
     rear_lidar = sick_lidar('rear', '/scan_rear')
@@ -376,6 +391,7 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
             autonics_points_node,
+            arm_camera_octomap_mux,
 
             # RB10 manipulator: 몸체+팔 URDF(tetra_description tetra_mh/tetra_rb10.xacro)로 robot_state_publisher·ros2_control·MoveIt.
             # 팔 패키지는 프로젝트 밖(~/rainbow)이라 robot.env TETRA_EXTRA_ROS_SETUP 으로 불러와야 한다
