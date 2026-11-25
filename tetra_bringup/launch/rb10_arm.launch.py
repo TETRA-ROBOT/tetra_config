@@ -9,9 +9,9 @@ robot.env 의 TETRA_EXTRA_ROS_SETUP 으로 불러온다. 노드 구성·지연·
 """
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
+from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -30,7 +30,22 @@ def _arguments() -> list:
         DeclareLaunchArgument('autonics_camera_mount', default_value='gripper', description='gripper | pantilt | none'),
         DeclareLaunchArgument('autonics_gripper_xyz', default_value='-0.0091 -0.0287 -0.1733', description='팔 끝단 원(tcp) 기준 카메라 메시 원점 (m). 카메라 중심이 위쪽 17.5 cm 에 온다'),
         DeclareLaunchArgument('autonics_gripper_rpy', default_value='3.1416 0 -1.5708', description='tcp 기준 카메라 자세 (rad)'),
+        DeclareLaunchArgument('use_arm_perception', default_value='true',
+                              description='깊이 카메라 점군으로 MoveIt octomap 을 만들어 팔 충돌 검사에 장애물을 넣는다 (params/rb10/sensors_3d.yaml). CPU 가 모자라면 false'),
     ]
+
+
+def _perception_sensors(enabled: bool) -> tuple:
+    """(sensors_3d yaml 경로 또는 None, 로그 문구). 플러그인 패키지가 없으면 move_group 이 플러그인 오류만 내고 장애물 없이 돌아서 미리 알린다"""
+    if not enabled:
+        return None, 'rb10_arm: use_arm_perception:=false, MoveIt 카메라 장애물(octomap)을 쓰지 않습니다'
+    try:
+        get_package_share_directory('moveit_ros_perception')
+    except PackageNotFoundError:
+        return None, ('rb10_arm: moveit_ros_perception 이 없어 카메라 장애물(octomap)을 쓰지 않습니다. '
+                      'sudo apt install ros-jazzy-moveit-ros-perception 후 팔 런치를 다시 띄우세요')
+    path = os.path.join(get_package_share_directory('tetra_bringup'), 'params', 'rb10', 'sensors_3d.yaml')
+    return path, f'rb10_arm: MoveIt 카메라 장애물(octomap) 사용: {path}'
 
 
 def _launch_setup(context, *args, **kwargs) -> list:
@@ -39,17 +54,21 @@ def _launch_setup(context, *args, **kwargs) -> list:
     mappings = {name: LaunchConfiguration(name).perform(context) for name in mapping_names}
     urdf_path = os.path.join(get_package_share_directory('tetra_description'), 'urdf', 'tetra_mh', 'tetra_rb10.xacro')
     srdf_path = os.path.join(get_package_share_directory('tetra_bringup'), 'params', 'rb10', 'tetra_mh_rb10.srdf')
+    sensors_path, perception_message = _perception_sensors(LaunchConfiguration('use_arm_perception').perform(context).lower() in ('true', '1'))
 
     # 절대 경로를 주면 MoveItConfigsBuilder 가 패키지 경로와 합치지 않고 그대로 쓴다
-    moveit_config = (
+    # sensors_3d 를 안 부르면 to_moveit_configs 가 rbpodo_moveit_config/config/sensors_3d.yaml 을 찾는데 없어서 장애물 없이 뜬다
+    builder = (
         MoveItConfigsBuilder('rbpodo', package_name='rbpodo_moveit_config')
         .robot_description(file_path=urdf_path, mappings=mappings)
         .trajectory_execution(file_path='config/moveit_controllers.yaml')
         .robot_description_semantic(file_path=srdf_path)
         .planning_scene_monitor(publish_robot_description=True, publish_robot_description_semantic=True)
         .planning_pipelines(pipelines=['ompl', 'chomp', 'pilz_industrial_motion_planner'])
-        .to_moveit_configs()
     )
+    if sensors_path:
+        builder = builder.sensors_3d(file_path=sensors_path)
+    moveit_config = builder.to_moveit_configs()
     controllers_path = os.path.join(get_package_share_directory('rbpodo_bringup'), 'config', 'test.yaml')
 
     robot_state_publisher = Node(
@@ -88,6 +107,7 @@ def _launch_setup(context, *args, **kwargs) -> list:
         arguments=['joint_trajectory_controller', '-c', '/controller_manager'],
     )
     return [
+        LogInfo(msg=perception_message),
         robot_state_publisher,
         move_group,
         TimerAction(period=ROS2_CONTROL_START_DELAY_S, actions=[ros2_control_node]),

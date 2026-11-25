@@ -1,0 +1,54 @@
+# TETRA-MH + RB10: MoveIt move_group 3D perception (rb10_arm.launch.py, launch arg use_arm_perception, default true).
+#
+# move_group turns both depth-camera point clouds into one octomap. The planning scene's world gets it as the
+# collision object '<octomap>', so /check_state_validity (the web API arm collision check,
+# TetraSingleManagement lib/robot/modules/arm-collision.ts) and planning refuse poses that would hit what the cameras see.
+#
+# Self-filtering: PointCloudOctomapUpdater removes points that fall inside any robot link collision shape
+# (body + arm, the whole URDF move_group got), each enlarged by padding_scale * size + padding_offset (m).
+# Points the arm hides behind itself (shadow) are dropped too. The filtered cloud can be checked in RViz
+# on filtered_cloud_topic.
+#
+# Needs ros-jazzy-moveit-ros-perception (the plugin library). Without it move_group only logs a plugin error
+# and keeps running without camera obstacles; the launch file warns and skips this file.
+#
+# Clearing: obstacles stay in the octomap until a later cloud sees through that space. The cameras do not see
+# everywhere at once, so things removed out of view stay. move_group service /clear_octomap (std_srvs/Empty,
+# web: arm window "Clear obstacles", API PUT /robot/arm/clear-obstacles) empties it.
+
+# octomap in odom: it stays put while the base moves (robot frame would drag old obstacles along).
+# move_group re-reads the odom -> robot transform on every octomap update.
+octomap_frame: odom
+# 5 cm voxels: fine enough for a gripper, cheap enough for two cameras on the robot PC
+octomap_resolution: 0.05
+# points farther than this from the sensor are not inserted (RB10 reach 1.3 m from a shoulder ~0.9 m up)
+max_range: 2.0
+
+sensors:
+  - arm_camera
+  - body_camera
+
+# Autonics depth camera on the gripper (or pan-tilt): depth_image_proc point_cloud_xyz of /camera/depth/image_rect_raw.
+# Organized 640x480 cloud: point_subsample 4 takes every 4th row and column (~19k points).
+arm_camera:
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  point_cloud_topic: /camera/depth/points
+  max_range: 1.5
+  point_subsample: 4
+  # the camera sits on the arm: a little more padding so the gripper/wrist edges do not become obstacles
+  padding_offset: 0.06
+  padding_scale: 1.0
+  max_update_rate: 2.0
+  filtered_cloud_topic: /move_group/arm_camera/filtered_points
+
+# RealSense body camera (MH bringup rs_launch.py camera_name camera1, needs pointcloud.enable:=true).
+# Unordered cloud (ordered_pc false, height 1): point_subsample 16 keeps 1 in 16 points (~19k).
+body_camera:
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  point_cloud_topic: /camera1/depth/color/points
+  max_range: 2.0
+  point_subsample: 16
+  padding_offset: 0.05
+  padding_scale: 1.0
+  max_update_rate: 1.0
+  filtered_cloud_topic: /move_group/body_camera/filtered_points
