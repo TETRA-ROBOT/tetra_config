@@ -1,0 +1,4 @@
+# rs_launch.py 가 인자로 받지 않는 RealSense 파라미터 (config_file 로 넘긴다, bringup_common.realsense_pointcloud_arguments).
+# decimation 4: 깊이 640x480 -> 160x120 (점구름 최대 19,200 점). 드라이버 기본 2 면 76,800 점이라 15 Hz 에서 약 18 MB/s 를 보낸다.
+# 3 m 에서 점 간격 약 2.8 cm 로 costmap 칸(5 cm)보다 촘촘하다
+decimation_filter.filter_magnitude: 4

@@ -70,3 +70,27 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    (안 하면 팔 관절 0 이 실제 값과 번갈아 나가 관제 3D 의 팔이 접혔다 폈다 했다). 예전에는 ~/rainbow test.launch.py 를 include 해 robot_state_publisher 가 둘이었다.
    팔 패키지(rbpodo_*)는 이 레포 밖이라 robot.env `TETRA_EXTRA_ROS_SETUP` 으로 불러온다 (README 3.4).
    Autonics 카메라 장착 위치는 `autonics_camera_mount`(gripper|pantilt|none). 리프트·팬틸트 관절은 값을 내는 드라이버가 없어 joint_state_publisher 의 0 으로 TF 만 잇는다.
+12. **RB10 팔 카메라 장애물 (MoveIt octomap)** (2026-11-25): `rb10_arm.launch.py` 의 `use_arm_perception`(기본 true)이 `params/rb10/sensors_3d.yaml` 을
+    MoveItConfigsBuilder `.sensors_3d()` 로 move_group 에 넣는다. PointCloudOctomapUpdater 두 개: 팔 끝 Autonics `/camera/depth/points`(depth_image_proc, 정렬 점군, subsample 4),
+    RealSense `/camera1/depth/color/points`(rs_launch `pointcloud.enable:=true` 필요, 비정렬, subsample 16). `octomap_frame: odom`(로봇이 움직여도 장애물이 끌려가지 않음), 해상도 0.05 m, max_range 2 m.
+    자기 몸 거르기: 업데이터가 move_group 이 아는 URDF(몸체+팔) 충돌 모양마다 `padding_scale`·`padding_offset`(팔 카메라 0.06, RealSense 0.05 m)만큼 키워 그 안의 점과 그림자를 버린다.
+    걸러진 점군은 `/move_group/{arm,body}_camera/filtered_points` 로 RViz 에서 본다. 리프트·팬틸트 관절은 TF 가 늘 0 이라(11번) 실제 높이와 다르면 그 부분이 장애물로 남을 수 있다.
+    octomap 은 planning scene 의 world 에 `<octomap>` 으로 들어가 `/check_state_validity`(관제 API 팔 충돌 검사)가 같이 본다 → API 409 `obstacle`.
+    한 번 본 장애물은 나중 점군이 그 칸을 비워 볼 때까지 남는다. move_group `/clear_octomap`(std_srvs/Empty, 관제 로봇팔 창 "장애물 지우기")으로 비운다.
+    **플러그인은 `ros-jazzy-moveit-ros-perception` 에 있다** (`moveit_ros_occupancy_map_monitor` 만으로는 없음). 없으면 런치가 경고만 남기고 sensors_3d 를 빼고 띄운다.
+    CPU 가 모자라면 `use_arm_perception:=false` 또는 yaml 의 `max_update_rate`·`point_subsample` 을 조정한다.
+13. **깊이 카메라 점구름** (2026-11-25):
+   - **RealSense** (`/camera1/depth/color/points`, 프레임 `camera1_depth_optical_frame`): MH·H 브링업 인자 `realsense_pointcloud`(기본 true). rs_launch 인자는 `bringup_common.realsense_pointcloud_arguments`,
+     rs_launch 가 받지 않는 decimation 배율은 `params/realsense_pointcloud.yaml`(config_file). 깊이 640x480@15 → decimation 4 = 160x120(최대 19,200 점), 색 없음(xyz), 4 m 넘는 깊이 버림.
+     decimation 은 발행되는 깊이 영상도 160x120 으로 줄인다. 컬러(AprilTag 도킹)는 그대로. 메시지는 구독자가 있을 때만 만든다.
+     S 는 켜지 않았다: `navigation_s.yaml` STVL 이 이미 realsense_cloud 를 구독해 켜는 순간 S 주행이 바뀐다 (실기 확인 뒤 켠다). EDU 는 일부러 끔, SM 은 깊이 자체가 꺼짐, M 은 RealSense 기본 꺼짐, 3D 브링업은 MID360 을 쓴다.
+   - **MH Nav2** (`navigation_mh.yaml`): 지역·전역 costmap 에 `stvl_layer`(SpatioTemporalVoxelLayer, 관측 realsense_cloud).
+     obstacle_layer(2D)에 넣지 않은 이유: 라이다 광선이 같은 칸을 지워 라이다 평면 밖 장애물(낮은 물건, 책상 상판)이 깜박인다.
+     높이 0.1~2.0 m(odom 기준, 그 아래는 바닥), 표시 3 m, 지우는 절두체 0.4~3 m(D455 87°x58°), 복셀 5 cm·점 2 개 이상, decay 3 s(시야 안에서는 가속 5 로 약 1 s).
+     전역에도 둔 이유: RPP 는 장애물 앞에서 멈추기만 하고 계획기는 전역 costmap 만 보므로, 전역에 없으면 같은 길을 다시 준다.
+     collision_monitor 에는 넣지 않았다: 시간 필터가 없어 깊이 잡음 한 번에 급정지하고, 낮은 장애물은 RPP 충돌 검사(1 s 앞)가 costmap 으로 막는다.
+     도킹: 카메라가 충전기 몸체를 장애물로 볼 수 있으나 도크 0.45 m 안은 충돌 검사에서 빠진다 (`dock_collision_threshold`). 실기에서 도킹을 다시 확인한다.
+   - **Autonics 팔 카메라** (`/camera/depth/points`, 프레임 `camera_depth_frame`): MH 브링업 인자 `autonics_pointcloud`(기본 true, `use_autonics_rgbd` 일 때만).
+     depth_image_proc `point_cloud_xyz_node` 가 `/camera/depth/image_rect_raw`(16UC1 mm)와 옆의 `/camera/depth/camera_info` 를 받는다 (image_transport 규칙이라 camera_info_rect 로 못 바꾼다. fx·cx 차이 0.2 % 안).
+     `camera_depth_frame` 은 드라이버가 `camera_link` 아래 광학 프레임으로 static TF 를 낸다. 구독자가 없으면 깊이도 구독하지 않는다. MoveIt 장애물 인식이 쓴다.
+     **Nav2 에는 넣지 않는다**: 팔 끝에 달려 팔과 같이 움직이고(팔 TF 지연만큼 점이 흔들림) 로봇 몸체·팔·짐을 장애물로 본다.

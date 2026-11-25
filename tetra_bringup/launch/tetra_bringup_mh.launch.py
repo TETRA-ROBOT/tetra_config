@@ -9,7 +9,7 @@ import subprocess
 
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, GroupAction, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, PythonExpression
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 
@@ -18,9 +18,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tetra_serial_ports import serial_port_actions  # noqa: E402
 from bringup_common import (  # noqa: E402
     ekf_node,
+    depth_point_cloud_xyz_node,
     joint_state_publisher_node,
     joystick_node,
     realsense_apriltag_node,
+    realsense_pointcloud_arguments,
     robot_pose_publisher_node,
     robot_state_publisher_node,
     rosbridge_nodes,
@@ -66,8 +68,13 @@ def generate_launch_description():
     # 2026-11-24 부터 MH 는 끈다: 팔·리프트·팬틸트는 웹 창과 플랜 모듈 액션으로 움직이고, GPIO 출력은 켠 상태가 유지되는 일반 출력이다
     use_gpio_controller = DeclareLaunchArgument('use_gpio_controller', default_value='false')
     use_realsense = DeclareLaunchArgument('use_realsense', default_value='true')
+    # RealSense 점구름 /camera1/depth/color/points: Nav2 지역·전역 costmap 의 STVL 장애물(navigation_mh.yaml)과 관제 지도 3D 점구름이 쓴다
+    realsense_pointcloud = DeclareLaunchArgument('realsense_pointcloud', default_value='true')
     use_herkulex = DeclareLaunchArgument('use_herkulex', default_value='true')
     use_autonics_rgbd = DeclareLaunchArgument('use_autonics_rgbd', default_value='true')
+    # Autonics 깊이 영상 → /camera/depth/points (MoveIt 장애물 인식용). Autonics 를 띄울 때만 뜻이 있다.
+    # Nav2 에는 넣지 않는다: 팔 끝에 달려 팔과 같이 움직이고 로봇 몸체·팔을 볼 수 있다 (tetra_config CONTEXT.md 13)
+    autonics_pointcloud = DeclareLaunchArgument('autonics_pointcloud', default_value='true')
     use_rb10 = DeclareLaunchArgument('use_rb10', default_value='false')
     thermal_pipeline = DeclareLaunchArgument(
         'thermal_pipeline',
@@ -254,6 +261,15 @@ def generate_launch_description():
         }],
     )
 
+    # Autonics 보정 깊이(16UC1 mm, camera_depth_frame = 광학 프레임, 드라이버가 camera_link 아래에 static TF 로 낸다)
+    # camera_info 는 영상 옆의 /camera/depth/camera_info(보정 전 내부 파라미터)를 받는다. 보정 뒤 값(camera_info_rect)과 fx·cx 차이가 0.2 % 안이다
+    autonics_points_node = depth_point_cloud_xyz_node(
+        '/camera/depth/image_rect_raw', '/camera/depth/points', 'autonics_point_cloud_xyz',
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
+            LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
+    )
+
     front_lidar = sick_lidar('front', '/scan_front')
     rear_lidar = sick_lidar('rear', '/scan_rear')
     front_filter = shadow_filter('front', '/scan_front', '/scan_filtered_1')
@@ -270,8 +286,10 @@ def generate_launch_description():
             use_thermal_camera,
             use_gpio_controller,
             use_realsense,
+            realsense_pointcloud,
             use_herkulex,
             use_autonics_rgbd,
+            autonics_pointcloud,
             use_rb10,
             thermal_pipeline,
             autonics_interface,
@@ -315,6 +333,7 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     PathJoinSubstitution([FindPackageShare('realsense2_camera'), 'launch', 'rs_launch.py'])),
+                launch_arguments=realsense_pointcloud_arguments(LaunchConfiguration('realsense_pointcloud')).items(),
                 condition=IfCondition(LaunchConfiguration('use_realsense')),
             ),
 
@@ -353,6 +372,7 @@ def generate_launch_description():
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
+            autonics_points_node,
 
             # RB10 manipulator: 몸체+팔 URDF(tetra_description tetra_mh/tetra_rb10.xacro)로 robot_state_publisher·ros2_control·MoveIt.
             # 팔 패키지는 프로젝트 밖(~/rainbow)이라 robot.env TETRA_EXTRA_ROS_SETUP 으로 불러와야 한다

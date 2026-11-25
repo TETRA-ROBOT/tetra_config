@@ -234,3 +234,52 @@ def realsense_apriltag_node(detector_parameters: Optional[Dict[str, object]] = N
             ('/camera_info', '/camera1/color/camera_info'),
         ],
     )
+
+
+# RealSense 점구름 (realsense2_camera pointcloud 필터가 ~/depth/color/points 로 낸다. 노드 이름 camera1, 네임스페이스 없음)
+REALSENSE_POINTCLOUD_TOPIC = '/camera1/depth/color/points'
+
+
+def realsense_pointcloud_arguments(enable: SomeSubstitutionsType = 'true') -> Dict[str, SomeSubstitutionsType]:
+    """rs_launch.py 에 넘길 점구름 인자. Nav2 장애물(STVL)과 관제 지도 3D 점구름이 이 구름을 쓴다.
+
+    - 깊이 640x480 을 15 Hz 로 받고 decimation 4 로 160x120(최대 19,200 점)으로 줄인다. costmap 칸(5 cm)보다 촘촘하다
+      (3 m 에서 점 간격 약 2.8 cm). 깊이를 줄이지 않으면 30 Hz x 30만 점이라 CPU·DDS 부담이 크다.
+    - 색을 입히지 않는다(stream_filter 0 = xyz 만). 색을 입히면 컬러 시야와 겹친 부분만 남고 점마다 색을 찾느라 더 든다.
+      장애물·관제 지도 모두 높이만 쓴다. 프레임은 camera1_depth_optical_frame.
+    - 4 m 넘는 깊이는 버린다(clip_distance). D455 는 4 m 에서 오차가 약 8 cm 라 장애물로 쓰지 않고, 점 수만 늘린다.
+    - 컬러 영상(AprilTag 도킹)은 그대로다. 메시지는 구독자가 있을 때만 만든다 (pointcloud_filter.cpp).
+    - decimation 은 발행되는 깊이 영상(/camera1/depth/image_rect_raw)도 160x120 으로 줄인다. 깊이 영상을 쓰는 곳은 없다.
+    """
+    return {
+        # rs_launch.py 가 인자로 받지 않는 decimation 배율(4)은 이 파일로 넘긴다
+        'config_file': os.path.join(get_package_share_directory('tetra_bringup'), 'params', 'realsense_pointcloud.yaml'),
+        'pointcloud.enable': enable,
+        'pointcloud.stream_filter': '0',
+        'pointcloud.ordered_pc': 'false',
+        'depth_module.depth_profile': '640x480x15',
+        'decimation_filter.enable': enable,
+        'clip_distance': '4.0',
+    }
+
+
+def depth_point_cloud_xyz_node(
+    depth_image_topic: str,
+    points_topic: str,
+    name: str,
+    condition: Optional[object] = None,
+) -> Node:
+    """깊이 영상(16UC1 mm 또는 32FC1 m)과 같은 폴더의 camera_info 로 점구름(xyz)을 만든다 (depth_image_proc point_cloud_xyz).
+
+    camera_info 는 image_transport 규칙대로 영상 토픽 옆의 camera_info 를 받는다 (remap 으로 바꿀 수 없다).
+    구독자가 없으면 깊이 영상도 구독하지 않는다 (depth_image_proc 의 지연 연결).
+    """
+    return Node(
+        package='depth_image_proc',
+        executable='point_cloud_xyz_node',
+        name=name,
+        output='screen',
+        parameters=[{'queue_size': 2}],
+        remappings=[('image_rect', depth_image_topic), ('points', points_topic)],
+        condition=condition,
+    )

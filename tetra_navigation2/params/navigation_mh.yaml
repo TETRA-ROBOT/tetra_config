@@ -91,9 +91,10 @@ local_costmap:
       height: 10 #8
       resolution: 0.05
       footprint: "[[0.4, 0.29], [0.4, -0.29], [-0.4, -0.29], [-0.4, 0.29]]"
-      # stvl_layer 는 뺐다: MH 2D 구성에는 /livox/lidar 도, RealSense 점구름(/camera1/depth/color/points)도 발행되지 않아 입력이 없다
-      # (설정 블록은 RealSense 점구름을 켤 때 다시 쓰도록 남긴다)
-      plugins: ["obstacle_layer", "inflation_layer"]
+      # stvl_layer = 전방 RealSense 점구름(/camera1/depth/color/points, 브링업 realsense_pointcloud 기본 true).
+      # 2D 라이다 평면 밖(낮은 물건, 책상 상판처럼 떠 있는 것)을 막는다. obstacle_layer 에 넣지 않고 따로 둔 이유:
+      # 라이다 광선이 같은 2D 칸을 지워 카메라가 본 낮은·높은 장애물이 매 주기 깜박인다. STVL 은 3D 복셀이고 카메라 시야(절두체) 안에서만 지운다
+      plugins: ["obstacle_layer", "stvl_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # RPP 의 비용 감속은 발자국에서 cost_scaling_dist(0.45 m)까지만 본다 (내접 0.29 + 0.45 = 0.74 m 안쪽 비용만 쓰임).
@@ -139,59 +140,46 @@ local_costmap:
       stvl_layer:
         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
-        voxel_decay: 1.0 #2.0
+        # 시야를 벗어난 복셀은 3 초 뒤 사라진다 (돌 때 낮은 물건을 바로 잊지 않게). 시야 안에서 다시 안 보이면 decay_acceleration 으로 약 1 초에 지운다
+        voxel_decay: 3.0
         decay_model: 0
         voxel_size: 0.05
         track_unknown_space: true
         unknown_threshold: 15.0
-        mark_threshold: 2
+        # 한 칸에 복셀 하나만 있어도 장애물 (얇은 책상 상판·낮은 턱). 잡음은 voxel_min_points 로 거른다
+        mark_threshold: 0
         update_footprint_enabled: true
         combination_method: 1
         origin_z: 0.0
-        publish_voxel_map: true #false
-        transform_tolerance: 0.1 #0.2 #1.0
+        # 복셀 지도(RViz 확인용)는 매 주기 점구름을 하나 더 만든다. 볼 때만 켠다
+        publish_voxel_map: false
+        transform_tolerance: 0.2
         mapping_mode: false
         map_save_duration: 60.0
-        observation_sources: livox_cloud #realsense_cloud
+        observation_sources: realsense_cloud
         realsense_cloud:
           data_type: "PointCloud2"
           topic: /camera1/depth/color/points
           marking: true
           clearing: true
-          obstacle_range: 2.0
-          min_obstacle_height: 0.1 #0.05
+          # 표시 거리 3 m (D455 오차 3 m 약 6 cm, 4 m 넘는 깊이는 드라이버 clip_distance 로 버린다)
+          obstacle_range: 3.0
+          # 높이는 odom 기준. 0.1 m 아래는 바닥으로 본다 (카메라 기울기 1° 오차면 3 m 앞 바닥이 5 cm 뜬다). 2 m 위는 천장·조명
+          min_obstacle_height: 0.1
           max_obstacle_height: 2.0
           expected_update_rate: 0.0
           observation_persistence: 0.0
           inf_is_valid: false
-          filter: "voxel" #"passthrough"
-          voxel_min_points: 0
+          filter: "voxel"
+          # 5 cm 복셀에 점 2 개 미만이면 버린다 (decimation 4 에서 3 m 점 간격 약 2.8 cm 라 실제 물체는 남고 튀는 점은 빠진다)
+          voxel_min_points: 2
           clear_after_reading: true
-          max_z: 2.0 # 0.7
-          min_z: 0.1
-          vertical_fov_angle: 1.01229 #0.7
-          horizontal_fov_angle: 1.51844 #1.20428
-          decay_acceleration: 2.0 #1.0
-          model_type: 0
-        livox_cloud:
-          data_type: "PointCloud2"
-          topic: /livox/lidar
-          marking: true
-          clearing: true
-          obstacle_range: 8.0
-          min_obstacle_height: 0.05
-          max_obstacle_height: 2.0
-          expected_update_rate: 0.0
-          observation_persistence: 0.0
-          inf_is_valid: false
-          filter: "voxel" #"passthrough"
-          voxel_min_points: 0
-          clear_after_reading: true
-          max_z: 2.0 # 0.7
-          min_z: 0.1
-          vertical_fov_angle: 0.907571 #52deg
-          horizontal_fov_angle: 6.28319 #360deg
-          decay_acceleration: 0.0 #1.0
+          # 지우는 절두체: 0.4 m(D455 최소 거리, 그 안쪽은 못 보므로 지우지 않는다) ~ 3 m, D455 깊이 시야 87° x 58°
+          min_z: 0.4
+          max_z: 3.0
+          vertical_fov_angle: 1.01229
+          horizontal_fov_angle: 1.51844
+          decay_acceleration: 5.0
           model_type: 0
       always_send_full_costmap: True
 
@@ -208,7 +196,8 @@ global_costmap:
       footprint: "[[0.4, 0.29], [0.4, -0.29], [-0.4, -0.29], [-0.4, 0.29]]"
       resolution: 0.05
       track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      # 지역 costmap 과 같은 RealSense STVL. 전역에 없으면 RPP 가 낮은 장애물 앞에서 멈춘 뒤 계획기가 그 물체를 몰라 같은 길만 다시 준다
+      plugins: ["static_layer", "obstacle_layer", "stvl_layer", "inflation_layer"]
       # 관제 API(TetraSingleManagement lib/robot/zones)가 보내는 PENALTY 구간("되도록 피함") 마스크.
       # 마스크 값(%)이 비용이 된다. 구간이 없으면 마스크가 0 이라 예전과 같다. 레이어가 아니라 filters 에 둔다 (모든 레이어 뒤에 적용)
       filters: ["zone_keepout_filter"]
@@ -239,6 +228,44 @@ global_costmap:
           marking: True
           obstacle_max_range: 100.0
           raytrace_max_range: 101.0
+      # 설정은 지역 costmap stvl_layer 와 같다 (설명은 그쪽)
+      stvl_layer:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled: true
+        voxel_decay: 3.0
+        decay_model: 0
+        voxel_size: 0.05
+        track_unknown_space: true
+        unknown_threshold: 15.0
+        mark_threshold: 0
+        update_footprint_enabled: true
+        combination_method: 1
+        origin_z: 0.0
+        publish_voxel_map: false
+        transform_tolerance: 0.2
+        mapping_mode: false
+        map_save_duration: 60.0
+        observation_sources: realsense_cloud
+        realsense_cloud:
+          data_type: "PointCloud2"
+          topic: /camera1/depth/color/points
+          marking: true
+          clearing: true
+          obstacle_range: 3.0
+          min_obstacle_height: 0.1
+          max_obstacle_height: 2.0
+          expected_update_rate: 0.0
+          observation_persistence: 0.0
+          inf_is_valid: false
+          filter: "voxel"
+          voxel_min_points: 2
+          clear_after_reading: true
+          min_z: 0.4
+          max_z: 3.0
+          vertical_fov_angle: 1.01229
+          horizontal_fov_angle: 1.51844
+          decay_acceleration: 5.0
+          model_type: 0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True

@@ -18,6 +18,7 @@ from bringup_common import (  # noqa: E402
     joint_state_publisher_node,
     joystick_node,
     realsense_apriltag_node,
+    realsense_pointcloud_arguments,
     robot_pose_publisher_node,
     robot_state_publisher_node,
     rosbridge_nodes,
@@ -32,6 +33,8 @@ def generate_launch_description():
     rear_lidar_hostname = DeclareLaunchArgument('rear_lidar_hostname', default_value='192.168.0.2')
     front_lidar_frame = DeclareLaunchArgument('front_lidar_frame', default_value='laser')
     rear_lidar_frame = DeclareLaunchArgument('rear_lidar_frame', default_value='laser_link2')
+    # RealSense 점구름 /camera1/depth/color/points: 지금 H 는 관제 지도 3D 점구름에만 쓴다 (navigation_h.yaml STVL 은 realsense_cloud 를 구독하지 않는다)
+    realsense_pointcloud = DeclareLaunchArgument('realsense_pointcloud', default_value='true')
 
     # tetra_wheel_driver Board
     tetra_wheel_driver_node = Node(
@@ -133,6 +136,7 @@ def generate_launch_description():
             rear_lidar_hostname,
             front_lidar_frame,
             rear_lidar_frame,
+            realsense_pointcloud,
             # 드라이버 노드보다 먼저 와야 노드가 스캔한 포트를 받는다
             *serial_port_actions({'wheel': '/dev/ttyS0', 'power': '/dev/ttyS1', 'imu': '/dev/IMU'}),
             tetra_wheel_driver_node,
@@ -163,6 +167,7 @@ def generate_launch_description():
             IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 [get_package_share_directory('realsense2_camera'), '/launch/rs_launch.py']),
+            launch_arguments=realsense_pointcloud_arguments(LaunchConfiguration('realsense_pointcloud')).items(),
             ),
             
             # 충전 도킹 태그는 전방 RealSense 컬러 영상에서 찾는다 (navigation_h.yaml docking_server).
