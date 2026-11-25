@@ -49,7 +49,8 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.1 #0.25
+      # 0.1 이면 경계에 들어서자마자 멈춰 늘 9~10 cm 떨어져 섰다 (실기 2026-11-25 MH, 도착 8회). 마지막 접근은 0.05 m/s 라 5 cm 까지 붙어도 된다
+      xy_goal_tolerance: 0.05 #0.1 #0.25
       yaw_goal_tolerance: 0.0274533 #0.0349066 #0.0872665
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
