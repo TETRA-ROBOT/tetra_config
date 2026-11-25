@@ -69,12 +69,14 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
    Jazzy joint_state_publisher 는 파일을 받아도 `/robot_description` 을 늘 구독해 몸체+팔 URDF 로 갈아타므로 그 구독을 쓰지 않는 토픽으로 돌린다
    (안 하면 팔 관절 0 이 실제 값과 번갈아 나가 관제 3D 의 팔이 접혔다 폈다 했다). 예전에는 ~/rainbow test.launch.py 를 include 해 robot_state_publisher 가 둘이었다.
    팔 패키지(rbpodo_*)는 이 레포 밖이라 robot.env `TETRA_EXTRA_ROS_SETUP` 으로 불러온다 (README 3.4).
-   Autonics 카메라 장착 위치는 `autonics_camera_mount`(gripper|pantilt|none). 리프트·팬틸트 관절은 값을 내는 드라이버가 없어 joint_state_publisher 의 0 으로 TF 만 잇는다.
+   Autonics 카메라 장착 위치는 `autonics_camera_mount`(gripper|pantilt|none). 리프트·팬틸트 관절은 값을 내는 드라이버가 없어 joint_state_publisher 가 낸다: `source_list: ['/module_joint_states']` 로 관제 API 가 `/lift_status`·서보 상태로 10 Hz 로 보내는 실제 값을 받고(TetraSingleManagement `module-joint-states.ts`), 받기 전·API 가 없을 때는 0 이다.
 12. **RB10 팔 카메라 장애물 (MoveIt octomap)** (2026-11-25): `rb10_arm.launch.py` 의 `use_arm_perception`(기본 true)이 `params/rb10/sensors_3d.yaml` 을
-    MoveItConfigsBuilder `.sensors_3d()` 로 move_group 에 넣는다. PointCloudOctomapUpdater 두 개: 팔 끝 Autonics `/camera/depth/points`(depth_image_proc, 정렬 점군, subsample 4),
-    RealSense `/camera1/depth/color/points`(rs_launch `pointcloud.enable:=true` 필요, 비정렬, subsample 16). `octomap_frame: odom`(로봇이 움직여도 장애물이 끌려가지 않음), 해상도 0.05 m, max_range 2 m.
+    MoveItConfigsBuilder `.sensors_3d()` 로 move_group 에 넣는다. PointCloudOctomapUpdater 두 개: 팔 끝 Autonics `/camera/depth/points_filtered`(depth_image_proc → pcl_ros PassThrough `autonics_points_near_filter` 로 카메라 앞 0.25~2 m 만, 정렬 점군, subsample 4),
+    RealSense `/camera1/depth/color/points`(rs_launch `pointcloud.enable:=true` 필요, 비정렬, subsample 16).
+    팔 카메라(ToF)는 렌즈 앞 0.2 m 안에 거짓 점을 낸다: 접은 팔에서 장애물로 들어간 점의 58 % 가 그 안이었고, octomap 은 한 번 맞으면 칸을 막아 가만히 서 있어도 1분 만에 팔 길이 막혔다 (2026-11-25).
+    드라이버 ToF 필터(`conf_filter_enable` 등 README 권장값)는 켜 보니 점이 프레임당 1만 개 넘게 늘어 더 나빠져 끈 채로 둔다. `octomap_frame: odom`(로봇이 움직여도 장애물이 끌려가지 않음), 해상도 0.05 m, max_range 2 m.
     자기 몸 거르기: 업데이터가 move_group 이 아는 URDF(몸체+팔) 충돌 모양마다 `padding_scale`·`padding_offset`(팔 카메라 0.06, RealSense 0.05 m)만큼 키워 그 안의 점과 그림자를 버린다.
-    걸러진 점군은 `/move_group/{arm,body}_camera/filtered_points` 로 RViz 에서 본다. 리프트·팬틸트 관절은 TF 가 늘 0 이라(11번) 실제 높이와 다르면 그 부분이 장애물로 남을 수 있다.
+    걸러진 점군은 `/move_group/{arm,body}_camera/filtered_points` 로 RViz 에서 본다. 예전에는 리프트·팬틸트 TF 가 늘 0 이라 실제 높이·각도와 달라 몸통·머리를 자기 몸으로 걸러 내지 못했고, 리프트 3 cm 차이로 팔 접기·홈 길이 막혔다 (2026-11-25). 지금은 11번의 실제 값으로 TF 를 낸다. API 가 내려가 있으면 다시 0 이 될 수 있다.
     octomap 은 planning scene 의 world 에 `<octomap>` 으로 들어가 `/check_state_validity`(관제 API 팔 충돌 검사)가 같이 본다 → API 409 `obstacle`.
     한 번 본 장애물은 나중 점군이 그 칸을 비워 볼 때까지 남는다. move_group `/clear_octomap`(std_srvs/Empty, 관제 로봇팔 창 "장애물 지우기")으로 비운다.
     **플러그인은 `ros-jazzy-moveit-ros-perception` 에 있다** (`moveit_ros_occupancy_map_monitor` 만으로는 없음). 없으면 런치가 경고만 남기고 sensors_3d 를 빼고 띄운다.

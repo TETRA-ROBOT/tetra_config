@@ -27,19 +27,25 @@ def use_sim_time_argument() -> DeclareLaunchArgument:
     return DeclareLaunchArgument('use_sim_time', default_value='false')
 
 
-def joint_state_publisher_node() -> Node:
+def joint_state_publisher_node(source_list: list[str] | None = None) -> Node:
     """바퀴·캐스터 관절 값을 0 으로 발행한다.
 
     바퀴·캐스터는 돌아가는 관절(continuous)이라 관절 값이 없으면 robot_state_publisher 가 그 링크의 TF 를 내지 못한다.
     /joint_states 를 내는 노드가 없어 RViz RobotModel 이 "No transform from [base_l_wheel_link] ..." 오류를 냈다.
     휠 드라이버는 바퀴 각도를 내지 않으므로 0 으로 고정해 발행한다 (모델을 그리기 위한 값이고 주행 계산에는 쓰지 않는다)
+
+    Args:
+        source_list: 실제 관절 값을 받을 JointState 토픽 (예: MH 리프트·팬틸트 '/module_joint_states'). 받은 관절은 0 대신 그 값을 낸다
     """
+    parameters = {'use_sim_time': LaunchConfiguration('use_sim_time')}
+    if source_list:
+        parameters['source_list'] = source_list
     return Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
         name='joint_state_publisher',
         output='screen',
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        parameters=[parameters],
     )
 
 

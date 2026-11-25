@@ -37,6 +37,8 @@
   <exec_depend>topic_tools</exec_depend>
   <exec_depend>tetra_gpio_controller</exec_depend>
   <exec_depend>autonics_rgbd_ros</exec_depend>
+  <!-- MH: 팔 카메라 점군의 가까운 거짓 점을 빼는 PassThrough (tetra_bringup_mh.launch.py autonics_points_near_filter) -->
+  <exec_depend>pcl_ros</exec_depend>
   <exec_depend>livox_ros_driver2</exec_depend>
   <exec_depend>gscam</exec_depend>
   <exec_depend>tetra_wheel_driver</exec_depend>

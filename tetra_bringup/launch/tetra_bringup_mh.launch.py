@@ -36,6 +36,9 @@ from launch.conditions import IfCondition, UnlessCondition
 # 팔이 있을 때 joint_state_publisher 에 줄 몸체 URDF (팔 관절이 없어 리프트·팬틸트만 0 으로 낸다).
 # joint_state_publisher 는 URDF 파일 경로를 인자로 받으면 /robot_description(몸체+팔) 대신 그 파일을 쓴다
 BODY_URDF_PATH = '/tmp/tetra_mh_body.urdf'
+# 리프트·팬틸트 실제 관절 값. 관제 API 가 /lift_status·서보 상태로 10 Hz 로 낸다 (TetraSingleManagement module-joint-states.ts).
+# 받은 관절은 0 대신 이 값을 낸다. 늘 0 이면 TF 몸통·머리가 실제와 달라 MoveIt 카메라 장애물이 로봇 자기 몸을 장애물로 남겼다 (2026-11-25 실기)
+MODULE_JOINT_SOURCES = ['/module_joint_states']
 
 
 def _body_only_joint_state_publisher(context, *args, **kwargs):
@@ -48,7 +51,7 @@ def _body_only_joint_state_publisher(context, *args, **kwargs):
         name='joint_state_publisher',
         output='screen',
         arguments=[BODY_URDF_PATH],
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time'), 'source_list': MODULE_JOINT_SOURCES}],
         # Jazzy joint_state_publisher 는 파일을 받아도 /robot_description 을 늘 구독해, robot_state_publisher 가 낸 몸체+팔 URDF 로
         # 갈아타고 팔 관절을 0 으로 냈다. joint_state_broadcaster 의 실제 값과 번갈아 들어가 팔이 접혔다 폈다 했다 (2026-11-24 실기).
         # 아무도 내지 않는 토픽으로 돌려 몸체 파일만 쓰게 한다
@@ -143,7 +146,7 @@ def generate_launch_description():
     rsp_node = GroupAction([robot_state_publisher_node(xacro_folder='tetra_mh')], condition=UnlessCondition(LaunchConfiguration('use_rb10')))
     # joint_state_publisher 는 URDF 의 움직이는 관절을 모두 0 으로 낸다. 리프트·팬틸트는 관절 값을 내는 드라이버가 없어 이 값으로 TF 를 잇는다.
     # 팔이 있으면 팔 관절은 joint_state_broadcaster 가 내므로, 몸체 URDF 만 넘겨 팔 관절을 0 으로 덮어쓰지 않게 한다
-    jsp_node = GroupAction([joint_state_publisher_node()], condition=UnlessCondition(LaunchConfiguration('use_rb10')))
+    jsp_node = GroupAction([joint_state_publisher_node(MODULE_JOINT_SOURCES)], condition=UnlessCondition(LaunchConfiguration('use_rb10')))
     jsp_body_node = OpaqueFunction(function=_body_only_joint_state_publisher, condition=IfCondition(LaunchConfiguration('use_rb10')))
     
     # rosbridge_server + rosapi
@@ -269,6 +272,25 @@ def generate_launch_description():
             "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
             LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
     )
+    # 팔 카메라(ToF)는 렌즈 앞 0.2 m 안을 제대로 재지 못해 허공에 점을 낸다. 접은 팔에서 장애물로 들어간 점의 58 % 가 카메라 0.2 m 안이었고
+    # octomap 은 한 번 맞으면 칸을 막아 가만히 서 있어도 1분 만에 접기 → 홈 길이 막혔다 (실기 2026-11-25). MoveIt 에는 0.25 m 안을 뺀 점군을 준다.
+    # camera_depth_frame 이 광학 프레임이라 z = 카메라 앞 거리다. keep_organized 로 640x480 모양을 남겨 sensors_3d 의 point_subsample(행·열)이 그대로 맞는다
+    autonics_near_filter_node = Node(
+        package='pcl_ros',
+        executable='filter_passthrough_node',
+        name='autonics_points_near_filter',
+        output='screen',
+        parameters=[{
+            'filter_field_name': 'z',
+            'filter_limit_min': 0.25,
+            'filter_limit_max': 2.0,
+            'keep_organized': True,
+        }],
+        remappings=[('input', '/camera/depth/points'), ('output', '/camera/depth/points_filtered')],
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
+            LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
+    )
 
     front_lidar = sick_lidar('front', '/scan_front')
     rear_lidar = sick_lidar('rear', '/scan_rear')
@@ -373,6 +395,7 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
             autonics_points_node,
+            autonics_near_filter_node,
 
             # RB10 manipulator: 몸체+팔 URDF(tetra_description tetra_mh/tetra_rb10.xacro)로 robot_state_publisher·ros2_control·MoveIt.
             # 팔 패키지는 프로젝트 밖(~/rainbow)이라 robot.env TETRA_EXTRA_ROS_SETUP 으로 불러와야 한다
