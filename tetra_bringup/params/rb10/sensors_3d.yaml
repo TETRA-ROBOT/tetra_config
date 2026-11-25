@@ -24,17 +24,19 @@ octomap_resolution: 0.05
 # points farther than this from the sensor are not inserted (RB10 reach 1.3 m from a shoulder ~0.9 m up)
 max_range: 2.0
 
+# arm_camera is not listed (real MH, 2026-11-25). The arm ToF camera puts false points close to the lens: within
+# 0.2 m (58 % of what reached the octomap), and also 0.27-0.5 m in front of the stowed arm with nothing there, so the
+# fold -> home move was refused while standing still. It would also see a picked-up object at the gripper and refuse
+# every move while carrying it. Only the body RealSense feeds the octomap. Add arm_camera back to try another camera.
 sensors:
-  - arm_camera
   - body_camera
 
 # Autonics depth camera on the gripper (or pan-tilt): depth_image_proc point_cloud_xyz of /camera/depth/image_rect_raw.
 # Organized 640x480 cloud: point_subsample 4 takes every 4th row and column (~19k points).
-# Reads the near-range filtered cloud (tetra_bringup_mh.launch.py autonics_points_near_filter): the ToF camera puts
-# false points within 0.2 m of the lens, and one hit is enough to block an octomap cell (real MH, 2026-11-25).
+# Not in the sensors list above (see there). Kept so it can be switched back on.
 arm_camera:
   sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
-  point_cloud_topic: /camera/depth/points_filtered
+  point_cloud_topic: /camera/depth/points
   max_range: 1.5
   point_subsample: 4
   # the camera sits on the arm: a little more padding so the gripper/wrist edges do not become obstacles

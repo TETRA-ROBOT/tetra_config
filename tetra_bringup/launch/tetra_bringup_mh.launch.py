@@ -272,25 +272,6 @@ def generate_launch_description():
             "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
             LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
     )
-    # 팔 카메라(ToF)는 렌즈 앞 0.2 m 안을 제대로 재지 못해 허공에 점을 낸다. 접은 팔에서 장애물로 들어간 점의 58 % 가 카메라 0.2 m 안이었고
-    # octomap 은 한 번 맞으면 칸을 막아 가만히 서 있어도 1분 만에 접기 → 홈 길이 막혔다 (실기 2026-11-25). MoveIt 에는 0.25 m 안을 뺀 점군을 준다.
-    # camera_depth_frame 이 광학 프레임이라 z = 카메라 앞 거리다. keep_organized 로 640x480 모양을 남겨 sensors_3d 의 point_subsample(행·열)이 그대로 맞는다
-    autonics_near_filter_node = Node(
-        package='pcl_ros',
-        executable='filter_passthrough_node',
-        name='autonics_points_near_filter',
-        output='screen',
-        parameters=[{
-            'filter_field_name': 'z',
-            'filter_limit_min': 0.25,
-            'filter_limit_max': 2.0,
-            'keep_organized': True,
-        }],
-        remappings=[('input', '/camera/depth/points'), ('output', '/camera/depth/points_filtered')],
-        condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('use_autonics_rgbd'), "' == 'true' and '",
-            LaunchConfiguration('autonics_pointcloud'), "' == 'true'"])),
-    )
 
     front_lidar = sick_lidar('front', '/scan_front')
     rear_lidar = sick_lidar('rear', '/scan_rear')
@@ -395,7 +376,6 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration('use_autonics_rgbd')),
             ),
             autonics_points_node,
-            autonics_near_filter_node,
 
             # RB10 manipulator: 몸체+팔 URDF(tetra_description tetra_mh/tetra_rb10.xacro)로 robot_state_publisher·ros2_control·MoveIt.
             # 팔 패키지는 프로젝트 밖(~/rainbow)이라 robot.env TETRA_EXTRA_ROS_SETUP 으로 불러와야 한다
