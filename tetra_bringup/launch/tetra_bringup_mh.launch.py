@@ -3,11 +3,11 @@
 import os
 import sys
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
 import subprocess
 
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, GroupAction, OpaqueFunction
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, GroupAction, LogInfo, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, PythonExpression
 from launch_ros.substitutions import FindPackageShare
@@ -39,6 +39,26 @@ BODY_URDF_PATH = '/tmp/tetra_mh_body.urdf'
 # 리프트·팬틸트 실제 관절 값. 관제 API 가 /lift_status·서보 상태로 10 Hz 로 낸다 (TetraSingleManagement module-joint-states.ts).
 # 받은 관절은 0 대신 이 값을 낸다. 늘 0 이면 TF 몸통·머리가 실제와 달라 MoveIt 카메라 장애물이 로봇 자기 몸을 장애물로 남겼다 (2026-11-25 실기)
 MODULE_JOINT_SOURCES = ['/module_joint_states']
+
+
+def _thermal_camera_node(context, *args, **kwargs):
+    # gscam 은 열화상 카메라를 단 로봇만 쓴다. package.xml 필수 의존성이면 rosdep check 가 모든 모델의 업데이트를 막아서
+    # (2026-11-26 MH 현장 업데이트) 의존성에서 뺐다. 켰는데 없으면 launch 전체를 죽이지 않고 설치 방법만 알린다
+    try:
+        get_package_share_directory('gscam')
+    except PackageNotFoundError:
+        return [LogInfo(msg='[열화상 카메라] gscam 이 설치되지 않아 띄우지 않습니다: sudo apt install ros-jazzy-gscam')]
+    return [Node(
+        package='gscam',
+        executable='gscam_node',
+        output='screen',
+        parameters=[{
+            'sync_sink': False,
+            'gscam_config': LaunchConfiguration('thermal_pipeline'),
+            'frame_id': 'camera',
+            'use_gst_timestamps': False,
+        }],
+    )]
 
 
 def _body_only_joint_state_publisher(context, *args, **kwargs):
@@ -163,22 +183,8 @@ def generate_launch_description():
     )
 
 
-    gscam_config = LaunchConfiguration('thermal_pipeline')
-    # GStreamer 
-    gscam_node = Node(
-        package='gscam', 
-        executable='gscam_node',
-        output='screen',
-        parameters=[
-            {
-              "sync_sink": False,
-              "gscam_config": gscam_config,
-              "frame_id": "camera",
-              "use_gst_timestamps": False,
-            }
-        ],
-        condition=IfCondition(LaunchConfiguration('use_thermal_camera')),
-    )
+    # 열화상 카메라(RTSP → GStreamer). 선택 장비라 gscam 이 없으면 안내만 하고 나머지 노드는 그대로 띄운다
+    gscam_node = OpaqueFunction(function=_thermal_camera_node, condition=IfCondition(LaunchConfiguration('use_thermal_camera')))
 
 
     # tetra_gpio_controller

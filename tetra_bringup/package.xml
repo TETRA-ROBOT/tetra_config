@@ -38,7 +38,7 @@
   <exec_depend>tetra_gpio_controller</exec_depend>
   <exec_depend>autonics_rgbd_ros</exec_depend>
   <exec_depend>livox_ros_driver2</exec_depend>
-  <exec_depend>gscam</exec_depend>
+  <!-- gscam(열화상 카메라)은 선택 장비라 넣지 않는다: 필수면 rosdep check 가 모든 모델의 업데이트를 막는다. tetra_bringup_mh.launch.py 참고 -->
   <exec_depend>tetra_wheel_driver</exec_depend>
   <exec_depend>tetra_power_driver</exec_depend>
   <exec_depend>tetra_docking</exec_depend>
