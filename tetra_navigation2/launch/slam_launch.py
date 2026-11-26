@@ -61,13 +61,15 @@ def generate_launch_description():
 
     declare_params_file_cmd = DeclareLaunchArgument(
         'params_file',
-        default_value=os.path.join(bringup_dir, 'params', 'nav2_params.yaml'),
+        # 웹 관제는 늘 모델별 slam_toolbox_<model>.yaml 을 넘긴다. 예전 기본값(tetra_bringup/params/nav2_params.yaml)은 없는 파일이었다
+        default_value=os.path.join(get_package_share_directory('tetra_navigation2'), 'params', 'slam_toolbox.yaml'),
         description='Full path to the ROS2 parameters file to use for all launched nodes',
     )
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='True',
+        # 실기 기준. 웹 관제·bringup_launch.py 는 늘 값을 넘기고, 손으로 띄울 때 True 면 /clock 을 기다리며 지도를 안 만든다
+        default_value='False',
         description='Use simulation (Gazebo) clock if true',
     )
 

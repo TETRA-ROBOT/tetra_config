@@ -1,88 +1,54 @@
+"""TETRA-M Cartographer 2D 매핑을 손으로 띄울 때 (점검·개발용).
+
+웹 관제와 같은 cartographer_mapping.launch.py 를 include 하고, use_rviz:=true 면 RViz 를 같이 띄운다.
+예전 파일은 없는 occupancy_grid.launch.py·rviz/tetra_cartographer.rviz 를 불러 뜨지 않았고,
+Cartographer 가 내는 map→odom 을 고정 TF 로 한 번 더 내서 위치가 튀었다.
+"""
 
 import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import ThisLaunchFileDir
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+CONFIGURATION_BASENAME = 'tetra_lds_2d.lua'
+SCAN_TOPIC = 'scan'
+RVIZ_CONFIG = 'tetra_cartographer_m.rviz'
 
 
-def generate_launch_description():
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
-    turtlebot3_cartographer_prefix = get_package_share_directory('tetra_cartographer')
-    cartographer_config_dir = LaunchConfiguration('cartographer_config_dir', default=os.path.join(
-                                                  turtlebot3_cartographer_prefix, 'config'))
-    configuration_basename = LaunchConfiguration('configuration_basename',
-                                                 default='tetra_lds_2d.lua')
+def generate_launch_description() -> LaunchDescription:
+    share = get_package_share_directory('tetra_cartographer')
+    use_sim_time = LaunchConfiguration('use_sim_time')
 
-    resolution = LaunchConfiguration('resolution', default='0.05')
-    publish_period_sec = LaunchConfiguration('publish_period_sec', default='1.0')
+    mapping = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'cartographer_mapping.launch.py')),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'configuration_basename': LaunchConfiguration('configuration_basename'),
+            'scan_topic': LaunchConfiguration('scan_topic'),
+            'resolution': LaunchConfiguration('resolution'),
+            'publish_period_sec': LaunchConfiguration('publish_period_sec'),
+        }.items(),
+    )
 
-    rviz_config_dir = os.path.join(get_package_share_directory('tetra_cartographer'),
-                                   'rviz', 'tetra_cartographer.rviz')
-
+    rviz = Node(
+        package='rviz2', executable='rviz2', name='rviz2', output='screen',
+        arguments=['-d', os.path.join(share, 'rviz', RVIZ_CONFIG)],
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(LaunchConfiguration('use_rviz')),
+    )
 
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'cartographer_config_dir',
-            default_value=cartographer_config_dir,
-            description='Full path to config file to load'),
-        DeclareLaunchArgument(
-            'configuration_basename',
-            default_value=configuration_basename,
-            description='Name of lua file for cartographer'),
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation (Gazebo) clock if true'),
-
-        Node(
-            package='cartographer_ros',
-            executable='cartographer_node',
-            name='cartographer_node',
-            output='screen',
-            parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-configuration_directory', cartographer_config_dir,
-                       '-configuration_basename', configuration_basename],
-	      remappings=[
-		('echoes', 'scan'),
-		('/odom', '/odometry/filtered')
-	      ]
-	    ),
-
-        DeclareLaunchArgument(
-            'resolution',
-            default_value=resolution,
-            description='Resolution of a grid cell in the published occupancy grid'),
-
-        DeclareLaunchArgument(
-            'publish_period_sec',
-            default_value=publish_period_sec,
-            description='OccupancyGrid publishing period'),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/occupancy_grid.launch.py']),
-            launch_arguments={'use_sim_time': use_sim_time, 'resolution': resolution,
-                              'publish_period_sec': publish_period_sec}.items(),
-        ),
-
-            
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            arguments=['-d', rviz_config_dir],
-            parameters=[{'use_sim_time': use_sim_time}],
-            output='screen'),
-            
-      Node(
-    	package='tf2_ros',
-    	executable='static_transform_publisher',
-   	name='link1_broadcaster',
-    	arguments=['0', '0', '0', '0', '0', '0', '1', 'map', 'odom'],
-    	output='screen'),
-            
+        DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('use_rviz', default_value='true'),
+        DeclareLaunchArgument('configuration_basename', default_value=CONFIGURATION_BASENAME),
+        DeclareLaunchArgument('scan_topic', default_value=SCAN_TOPIC),
+        DeclareLaunchArgument('resolution', default_value='0.05'),
+        DeclareLaunchArgument('publish_period_sec', default_value='1.0'),
+        mapping,
+        rviz,
     ])

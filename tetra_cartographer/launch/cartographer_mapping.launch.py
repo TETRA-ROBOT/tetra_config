@@ -6,6 +6,8 @@ Nav2 는 끄지 않고 lifecycle 로 일시정지만 하므로(service-caller.ts
   - map→odom 고정 TF 를 발행하지 않는다. Cartographer 가 map→odom 을 직접 발행하므로 같은 변환을 두 곳에서 내면
     TF 가 두 값 사이를 오가 지도와 로봇 위치가 튄다.
   - cartographer_node 를 -collect_metrics 로 띄운다. 웹 관제가 read_metrics 로 스캔 매칭 점수를 읽어 매핑 정확도로 보여 준다.
+scan_topic: tetra_lds_2d.lua 는 2D 스캔 하나(scan)를 받는다. H·MH 는 두 라이다를 합친 /scan_merge 만 내므로
+웹 관제가 scan_topic:=/scan_merge 를 넘긴다 (launch-plan.ts). 예전에는 /scan 을 기다리며 지도를 만들지 못했다.
 """
 
 import os
@@ -36,6 +38,9 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('resolution', default_value='0.05'),
         # 웹 관제는 /map 을 받아 화면에 그리고, 저장할 때 최근 지도인지(SLAM_MAP_MAX_AGE_MS) 확인한다
         DeclareLaunchArgument('publish_period_sec', default_value='1.0'),
+        DeclareLaunchArgument(
+            'scan_topic', default_value='scan',
+            description='LaserScan topic for tetra_lds_2d.lua (H/MH: /scan_merge)'),
 
         Node(
             package='cartographer_ros',
@@ -49,7 +54,7 @@ def generate_launch_description() -> LaunchDescription:
                 '-collect_metrics',
             ],
             # 바퀴 odom 대신 EKF 출력(odom→base_footprint TF 와 같은 값)을 쓴다
-            remappings=[('/odom', '/odometry/filtered')],
+            remappings=[('/odom', '/odometry/filtered'), ('scan', LaunchConfiguration('scan_topic'))],
         ),
         Node(
             package='cartographer_ros',

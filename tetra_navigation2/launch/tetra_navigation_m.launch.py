@@ -93,6 +93,8 @@ def generate_launch_description():
 
     launchDescriptionObject = LaunchDescription()
     launchDescriptionObject.add_action(sim_time_arg)
+    # 선언만 하고 넣지 않아 기본값(office.yaml)이 적용되지 않았다. 웹 관제는 늘 map_name 을 넘긴다
+    launchDescriptionObject.add_action(map_name_arg)
     launchDescriptionObject.add_action(localization_launch)
     launchDescriptionObject.add_action(navigation_launch)
     launchDescriptionObject.add_action(auto_relocalization_launch)
