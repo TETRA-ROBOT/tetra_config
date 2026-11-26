@@ -7,9 +7,9 @@ TETRA 로봇의 런치(Launch) 파일, 센서 융합(EKF), 2D/3D SLAM, 그리고
 
 | 서브 패키지 | 역할 | 주요 파일 |
 |---|---|---|
-| `tetra_bringup` | 6종 로봇 모델별 메인 브링업 런치 및 EKF 필터 설정 | `launch/tetra_bringup_*.launch.py`, `params/ekf.yaml` |
-| `tetra_navigation2` | Nav2 자율주행 스택 (BT Navigator, Costmap, Controller, Planner) | `launch/navigation_launch.py`, `params/nav2_params.yaml` |
-| `tetra_cartographer` | Cartographer 기반 2D SLAM 런치 및 Lua 설정 | `launch/cartographer.launch.py`, `configuration_files/*.lua` |
+| `tetra_bringup` | 6종 로봇 모델별 메인 브링업 런치 및 EKF 필터 설정 | `launch/tetra_bringup_*.launch.py`, `params/ekf_<model>.yaml` |
+| `tetra_navigation2` | Nav2 자율주행 스택 (BT Navigator, Costmap, Controller, Planner) | `launch/tetra_navigation_<model>.launch.py` → `navigation_launch.py`, `params/navigation_<model>.yaml`·`amcl_localization_<model>.yaml` |
+| `tetra_cartographer` | Cartographer 기반 2D SLAM 런치 및 Lua 설정 | `launch/cartographer_mapping.launch.py`(웹 관제), `cartographer_<model>.launch.py`(손으로), `config/*.lua` |
 | `tetra_rtabmap` | RTAB-Map 기반 3D Visual/LiDAR SLAM 및 메모리 관리 | `launch/tetra_rtabmap.launch.py` |
 
 ## 실행 흐름 다이어그램

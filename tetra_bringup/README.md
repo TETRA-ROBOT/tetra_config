@@ -26,7 +26,7 @@ Tetra Bringup 패키지는 Tetra 로봇의 초기화 및 설정을 담당합니�
 - **`tetra_bringup.launch.py`**: Tetra 로봇의 주요 노드들을 실행하는 launch 파일입니다. EKF 로컬라이제이션, 조이스틱, URDF, 서비스 노드 등을 포함합니다.
 
 ### params/
-- **`ekf.yaml`**: EKF 로컬라이제이션을 위한 설정 파일로, 주로 로봇의 센서 데이터와 odometry 데이터를 통합하여 위치를 추정합니다.
+- **`ekf_<model>.yaml`**: EKF 로컬라이제이션을 위한 설정 파일로, 주로 로봇의 센서 데이터와 odometry 데이터를 통합하여 위치를 추정합니다.
 
 ## 주요 노드
 - **`tetra_wheel_driver`**: TETRA 차륜 모터 드라이버 노드로, 로봇의 구동, 속도 명령 처리 및 오도메트리 데이터를 발행합니다.
@@ -62,7 +62,7 @@ Tetra Bringup 패키지는 Tetra 로봇의 초기화 및 설정을 담당합니�
 
   | 사용 플래그 | 기본값 | 관련 인자 |
   |---|---|---|
-  | `use_gpio_controller` | `true` | - |
+  | `use_gpio_controller` | `false` | - |
   | `use_keepalive_relay` | `true` | - |
   | `use_realsense` | `true` | - |
   | `use_herkulex` | `true` | - |
@@ -77,13 +77,13 @@ Tetra Bringup 패키지는 Tetra 로봇의 초기화 및 설정을 담당합니�
 ## 사용 방법
 1. Launch 파일 실행:
    ```bash
-   ros2 launch tetra_bringup tetra_bringup.launch.py
+   ros2 launch tetra_bringup tetra_bringup.launch.py robot_model:=m   # m · h · edu · mh · s · sm
    ```
-2. EKF 로컬라이제이션 설정을 수정하려면 `params/ekf.yaml` 파일을 편집합니다.
+2. EKF 로컬라이제이션 설정을 수정하려면 모델별 `params/ekf_<model>.yaml` 파일을 편집합니다.
 3. 조이스틱 입력을 사용하려면 `joy_node`를 활성화합니다.
 
 ## EKF 설정 예시
-`params/ekf.yaml` 파일의 주요 설정:
+`params/ekf_<model>.yaml` 파일의 주요 설정:
 - **`frequency`**: EKF 업데이트 주기 (기본값: 50.0 Hz).
 - **`map_frame`**: 맵 프레임 이름 (기본값: `map`).
 - **`odom_frame`**: 오도메트리 프레임 이름 (기본값: `odom`).

@@ -23,30 +23,27 @@
 
 ### 웹 관제 매핑 (`launch/cartographer_mapping.launch.py`)
 웹 관제는 관리자 옵션 `slam_engine` 이 `cartographer` 일 때 이 런치로 매핑합니다 (EDU 기본값). EDU 는 `tetra_edu_2d.lua`,
-나머지 모델은 `/scan` 하나를 받는 `tetra_lds_2d.lua` 를 씁니다. 오도메트리는 EKF 출력(`/odometry/filtered`)으로 바꿔 받습니다.
+나머지 모델은 2D 스캔 하나를 받는 `tetra_lds_2d.lua` 를 씁니다 (H·MH 는 `scan_topic:=/scan_merge`). 오도메트리는 EKF 출력(`/odometry/filtered`)으로 바꿔 받습니다.
 SLAM Toolbox 와 지도를 비교하려면 루트의 `scripts/slam_compare.sh` 를 쓰세요.
 
 ### launch/
-- **`cartographer.launch.py`**: Cartographer 노드를 실행하는 launch 파일로, SLAM을 시작합니다.
-- **`occupancy_grid.launch.py`**: Occupancy Grid를 생성하고 퍼블리시하는 노드를 실행하는 launch 파일입니다.
+- **`cartographer_mapping.launch.py`**: 웹 관제가 쓰는 Cartographer + Occupancy Grid (RViz·고정 TF 없음). 인자 `configuration_basename`, `scan_topic`.
+- **`cartographer_<model>.launch.py`**: 손으로 띄울 때. 위 런치를 모델 설정으로 include 하고 `use_rviz:=true`(기본)면 `rviz/tetra_cartographer_<model>.rviz` 를 띄운다.
+- **`occupancy_grid_<model>.launch.py`**: Occupancy Grid 노드만 (예전 방식, 위 런치에 이미 들어 있음).
 
 ### rviz/
-- **`tetra_cartographer.rviz`**: RViz 설정 파일로, SLAM 결과를 시각화하는 데 사용됩니다.
+- **`tetra_cartographer_<model>.rviz`**: 모델별 RViz 설정 파일로, SLAM 결과를 시각화하는 데 사용됩니다.
 
 ## 주요 노드
 - **`cartographer_node`**: Cartographer의 메인 노드로, 라이다 데이터를 처리하여 지도를 생성합니다.
 - **`cartographer_occupancy_grid_node`**: Occupancy Grid를 생성하고 퍼블리시하는 노드입니다.
 
 ## 🚀 실행 방법
-1. SLAM 실행:
+1. SLAM + Occupancy Grid + RViz 실행 (모델 접미사):
    ```bash
-   ros2 launch tetra_cartographer cartographer.launch.py
+   ros2 launch tetra_cartographer cartographer_m.launch.py              # 화면 없는 로봇 PC: use_rviz:=false
    ```
-2. Occupancy Grid 퍼블리시:
-   ```bash
-   ros2 launch tetra_cartographer occupancy_grid.launch.py
-   ```
-3. RViz를 사용하여 SLAM 결과를 시각화하려면 `rviz/tetra_cartographer.rviz` 파일을 로드합니다.
+2. 지도 저장: 웹 관제의 '지도 저장' 또는 `ros2 run nav2_map_server map_saver_cli -f <이름>`.
 
 ## 주요 설정
 ### `tetra_lds_2d.lua`

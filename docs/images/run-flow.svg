@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-label="TETRA 실행 순서: 브링업으로 드라이버와 센서, TF 를 띄우고, SLAM 으로 지도를 그려 저장한 뒤, AMCL 과 Nav2 로 그 지도 위를 주행한다. 센서 데이터는 매핑과 주행으로, 속도 명령은 바퀴 드라이버로 흐른다">
+  <style>
+    text { font-family: -apple-system, 'Segoe UI', 'Noto Sans KR', 'Malgun Gothic', sans-serif; }
+    .bg { fill: #F7F9FA; }
+    .card { fill: #FFFFFF; stroke: #CFD8DC; stroke-width: 1.5; }
+    .band { fill: #E53935; }
+    .num { fill: #E53935; font-size: 13px; font-weight: 700; }
+    .title { fill: #263238; font-size: 17px; font-weight: 700; }
+    .sub { fill: #546E7A; font-size: 12.5px; }
+    .mono { fill: #37474F; font-size: 11px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; }
+    .chip { fill: #ECEFF1; }
+    .link { stroke: #B0BEC5; stroke-width: 2; fill: none; }
+    .tellane { stroke: #EF9A9A; stroke-width: 2; fill: none; stroke-dasharray: 2 5; stroke-linecap: round; }
+    .cmdlane { stroke: #80CBC4; stroke-width: 2; fill: none; stroke-dasharray: 2 5; stroke-linecap: round; }
+    .arrow { fill: #B0BEC5; }
+    .lbl { fill: #607D8B; font-size: 12px; }
+    .tel { fill: #E53935; }
+    .cmd { fill: #00897B; }
+    .flow { fill: #263238; }
+    .glow { fill: none; stroke: #E53935; stroke-width: 3; opacity: 0; animation: glow 8s infinite; }
+    .g2 { animation-delay: 2s; } .g3 { animation-delay: 4s; } .g4 { animation-delay: 6s; }
+    @keyframes glow { 0% { opacity: 0; } 4% { opacity: .85; } 22% { opacity: .85; } 28% { opacity: 0; } 100% { opacity: 0; } }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #161B22; }
+      .card { fill: #0D1117; stroke: #30363D; }
+      .title { fill: #E6EDF3; }
+      .sub, .lbl { fill: #9DA7B1; }
+      .mono { fill: #C9D1D9; }
+      .chip { fill: #21262D; }
+      .link { stroke: #3D4651; }
+      .arrow { fill: #3D4651; }
+      .tellane { stroke: #8E3B3A; }
+      .cmdlane { stroke: #2C6E68; }
+      .tel { fill: #EF5350; }
+      .cmd { fill: #4DB6AC; }
+      .flow { fill: #E6EDF3; }
+      .num { fill: #EF5350; }
+    }
+    @media (prefers-reduced-motion: reduce) { .dot { display: none; } .glow { animation: none; opacity: 0; } }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="960" height="400" rx="16"/>
+
+  <!-- 단계 사이 화살표 -->
+  <path id="s12" class="link" d="M215 120 H258"/>
+  <path id="s23" class="link" d="M457 120 H500"/>
+  <path id="s34" class="link" d="M699 120 H742"/>
+  <polygon class="arrow" points="258,114 266,120 258,126"/>
+  <polygon class="arrow" points="500,114 508,120 500,126"/>
+  <polygon class="arrow" points="742,114 750,120 742,126"/>
+
+  <!-- 센서·TF 흐름 (브링업 → 매핑, 브링업 → 주행) -->
+  <path id="telA" class="tellane" d="M100 236 V282 H340 V236"/>
+  <path id="telB" class="tellane" d="M100 236 V282 H826 V236"/>
+  <!-- 속도 명령 (주행 → 바퀴 드라이버) -->
+  <path id="cmdA" class="cmdlane" d="M862 236 V330 H136 V236"/>
+
+  <!-- 1. 브링업 -->
+  <rect class="card" x="20" y="24" width="195" height="212" rx="12"/>
+  <rect class="glow g1" x="20" y="24" width="195" height="212" rx="12"/>
+  <rect class="band" x="20" y="24" width="6" height="212" rx="3"/>
+  <text class="num" x="38" y="50">1단계</text>
+  <text class="title" x="38" y="73">브링업</text>
+  <text class="sub" x="38" y="96">드라이버 · 센서 · TF</text>
+  <text class="sub" x="38" y="115">tetra_bringup</text>
+  <rect class="chip" x="34" y="130" width="168" height="22" rx="6"/>
+  <text class="mono" x="42" y="145">/scan  /odom  /imu/data</text>
+  <rect class="chip" x="34" y="158" width="168" height="22" rx="6"/>
+  <text class="mono" x="42" y="173">URDF → /tf_static</text>
+  <rect class="chip" x="34" y="186" width="168" height="22" rx="6"/>
+  <text class="mono" x="42" y="201">EKF /odometry/filtered</text>
+  <text class="sub" x="38" y="226">rosbridge 9090 (웹 관제)</text>
+
+  <!-- 2. 매핑 -->
+  <rect class="card" x="262" y="24" width="195" height="212" rx="12"/>
+  <rect class="glow g2" x="262" y="24" width="195" height="212" rx="12"/>
+  <rect class="band" x="262" y="24" width="6" height="212" rx="3"/>
+  <text class="num" x="280" y="50">2단계</text>
+  <text class="title" x="280" y="73">매핑 (SLAM)</text>
+  <text class="sub" x="280" y="96">로봇을 몰아 지도를 그린다</text>
+  <text class="sub" x="280" y="115">SLAM Toolbox · Cartographer</text>
+  <rect class="chip" x="276" y="130" width="168" height="22" rx="6"/>
+  <text class="mono" x="284" y="145">/map (0.05 m 칸)</text>
+  <rect class="chip" x="276" y="158" width="168" height="22" rx="6"/>
+  <text class="mono" x="284" y="173">TF map→odom</text>
+  <text class="sub" x="280" y="226">EDU 기본 Cartographer</text>
+
+  <!-- 3. 지도 저장 -->
+  <rect class="card" x="504" y="24" width="195" height="212" rx="12"/>
+  <rect class="glow g3" x="504" y="24" width="195" height="212" rx="12"/>
+  <rect class="band" x="504" y="24" width="6" height="212" rx="3"/>
+  <text class="num" x="522" y="50">3단계</text>
+  <text class="title" x="522" y="73">지도 저장</text>
+  <text class="sub" x="522" y="96">관제 '지도 저장' 버튼</text>
+  <text class="sub" x="522" y="115">또는 map_saver_cli</text>
+  <rect class="chip" x="518" y="130" width="168" height="22" rx="6"/>
+  <text class="mono" x="526" y="145">persistent/maps/</text>
+  <rect class="chip" x="518" y="158" width="168" height="22" rx="6"/>
+  <text class="mono" x="526" y="173">이름.yaml + 이름.pgm</text>
+  <text class="sub" x="522" y="226">TETRA_MAPS_DIR 로 바꿈</text>
+
+  <!-- 4. 주행 -->
+  <rect class="card" x="746" y="24" width="195" height="212" rx="12"/>
+  <rect class="glow g4" x="746" y="24" width="195" height="212" rx="12"/>
+  <rect class="band" x="746" y="24" width="6" height="212" rx="3"/>
+  <text class="num" x="764" y="50">4단계</text>
+  <text class="title" x="764" y="73">주행 (Nav2)</text>
+  <text class="sub" x="764" y="96">저장한 지도 위 자율주행</text>
+  <text class="sub" x="764" y="115">tetra_navigation2</text>
+  <rect class="chip" x="760" y="130" width="168" height="22" rx="6"/>
+  <text class="mono" x="768" y="145">map_server + AMCL</text>
+  <rect class="chip" x="760" y="158" width="168" height="22" rx="6"/>
+  <text class="mono" x="768" y="173">NavFn + RPP 제어기</text>
+  <rect class="chip" x="760" y="186" width="168" height="22" rx="6"/>
+  <text class="mono" x="768" y="201">collision_monitor</text>
+  <text class="sub" x="764" y="226">자동 위치 재추정 포함</text>
+
+  <!-- 흐름 이름 -->
+  <text class="lbl" x="360" y="276">센서 · TF  (/scan · /odom · /tf)</text>
+  <text class="lbl" x="360" y="324">속도 명령  /cmd_vel_nav2 → tetra_wheel_driver</text>
+
+  <!-- 범례 -->
+  <circle class="tel" cx="36" cy="372" r="5"/>
+  <text class="lbl" x="48" y="376">센서 · 상태</text>
+  <circle class="cmd" cx="148" cy="372" r="5"/>
+  <text class="lbl" x="160" y="376">명령</text>
+  <circle class="flow" cx="220" cy="372" r="5"/>
+  <text class="lbl" x="232" y="376">진행 순서</text>
+  <text class="lbl" x="560" y="376">웹 관제에서는 이 순서를 버튼으로 진행합니다</text>
+
+  <!-- 움직이는 점 -->
+  <g class="dot">
+    <circle class="flow" r="5"><animateMotion dur="8s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.12;1" calcMode="linear"><mpath href="#s12"/></animateMotion></circle>
+    <circle class="flow" r="5" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.25;0.26;0.37;0.38;1" dur="8s" repeatCount="indefinite"/><animateMotion dur="8s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.25;0.37;1" calcMode="linear"><mpath href="#s23"/></animateMotion></circle>
+    <circle class="flow" r="5" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.5;0.51;0.62;0.63;1" dur="8s" repeatCount="indefinite"/><animateMotion dur="8s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.5;0.62;1" calcMode="linear"><mpath href="#s34"/></animateMotion></circle>
+
+    <circle class="tel" r="4.5"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#telA"/></animateMotion></circle>
+    <circle class="tel" r="4.5"><animateMotion dur="4s" begin="-3.2s" repeatCount="indefinite"><mpath href="#telB"/></animateMotion></circle>
+    <circle class="tel" r="4.5"><animateMotion dur="4s" begin="-1.2s" repeatCount="indefinite"><mpath href="#telB"/></animateMotion></circle>
+    <circle class="cmd" r="4.5"><animateMotion dur="4s" begin="-3.6s" repeatCount="indefinite"><mpath href="#cmdA"/></animateMotion></circle>
+    <circle class="cmd" r="4.5"><animateMotion dur="4s" begin="-1.6s" repeatCount="indefinite"><mpath href="#cmdA"/></animateMotion></circle>
+  </g>
+</svg>
